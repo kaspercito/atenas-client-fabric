@@ -60,6 +60,19 @@ public final class AtenasTitleScreen extends Screen {
 
     @Override
     public void render(DrawContext g, int mx, int my, float delta) {
+        try { draw(g, mx, my, delta); }
+        catch (Throwable t) {
+            System.out.println("[Atenas] el menu de Atenas fallo al dibujar, se vuelve al de Minecraft: " + t);
+            t.printStackTrace();
+            com.atenas.fabric.shared.Config.set("atenasmenu", false);
+            client.setScreen(new net.minecraft.client.gui.screen.TitleScreen());
+        }
+    }
+
+    private boolean logged;
+
+    private void draw(DrawContext g, int mx, int my, float delta) {
+        if (!logged) { logged = true; System.out.println("[Atenas] menu principal: primer dibujo " + width + "x" + height); }
         float t = (System.currentTimeMillis() - t0) / 1000f;
         g.fillGradient(0, 0, width, height, 0xFF04030B, 0xFF120A2E);
         g.fillGradient(0, (int) (height * 0.55f), width, height, a(0x22D3EE, 0f), a(0x8B5CF6, 0.20f));

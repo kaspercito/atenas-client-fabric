@@ -87,7 +87,7 @@ public final class Extras {
 
     public static void tick(MinecraftClient mc) {
         if (mc.getOverlay() == null && mc.currentScreen != null && mc.currentScreen.getClass() == net.minecraft.client.gui.screen.TitleScreen.class && Config.get("atenasmenu", true))
-            mc.setScreen(new com.atenas.fabric.AtenasTitleScreen());
+            { System.out.println("[Atenas] menu principal de Atenas activado"); mc.setScreen(new com.atenas.fabric.AtenasTitleScreen()); }
         if (mc.player == null) { combo = 0; return; }
         int h = mc.player.hurtTime;
         if (h > 0 && prevHurt == 0) combo = 0;

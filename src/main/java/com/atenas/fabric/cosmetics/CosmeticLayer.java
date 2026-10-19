@@ -112,7 +112,7 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         final double fd2 = d2;
         ms.push();
         model.body.applyTransform(ms);
-        queue.submitCustom(ms, RenderLayers.getEntityCutoutNoCull(tex("wings", item.id)), (e, vc) -> {
+        queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(tex("wings", item.id)), (e, vc) -> {
             sink.vc = vc; sink.e = e; sink.light = fLight;
             if (item.membrane) plane.emit(sink, fOpen, fTime, fFlap, fTwo, WingPlane.gridFor(fd2), 0.0625F);
             else mesh.emit(sink, fOpen, fPhase, fFlap, fSegs, fTwo, 0.0625F);
@@ -128,13 +128,13 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         ms.push();
         model.head.applyTransform(ms);
         if ("halo".equals(item.id)) ms.translate(0.0, Math.sin(age * 0.1f) * 0.02, 0.0);
-        queue.submitCustom(ms, RenderLayers.getEntityCutoutNoCull(t), (e, vc) -> {
+        queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(t), (e, vc) -> {
             for (int g = 0; g < m.groups(); g++) if ((m.flags[g] & HatMesh.EMIT) == 0) m.emit(g, vc, e, light, 1f);
         });
         boolean any = false;
         for (int f : m.flags) if ((f & HatMesh.EMIT) != 0) any = true;
         if (any) {
-            queue.submitCustom(ms, RenderLayers.getEyes(t), (e, vc) -> {
+            queue.submitCustom(ms, RenderLayers.eyes(t), (e, vc) -> {
                 for (int g = 0; g < m.groups(); g++) {
                     int fl = m.flags[g];
                     if ((fl & HatMesh.EMIT) == 0) continue;

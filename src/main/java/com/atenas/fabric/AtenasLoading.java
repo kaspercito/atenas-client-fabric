@@ -30,6 +30,7 @@ public final class AtenasLoading extends Overlay {
     private final ResourceReload reload;
     private final long t0 = System.currentTimeMillis();
     private long doneAt = -1;
+    private int lastSec = -1;
     private float shown;
     private boolean failed, logoTried, logoOk;
     private final float[] sx = new float[70], sy = new float[70], ss = new float[70], sp = new float[70];
@@ -43,21 +44,22 @@ public final class AtenasLoading extends Overlay {
     /** Llamar cada tick: solo actua una vez, con el overlay de carga del arranque. */
     public static void tryInstall(MinecraftClient mc) {
         if (handled) return;
+        if (!com.atenas.fabric.shared.Config.get("atenasloading", true)) { handled = true; System.out.println("[Atenas] pantalla de carga propia desactivada por config (atenasloading=false)"); return; }
         try {
             Overlay o = mc.getOverlay();
             if (o == null) { if (++misses > 1200) handled = true; return; }
             handled = true;
-            if (!(o instanceof SplashOverlay) || o instanceof AtenasLoading) return;
+            if (!(o instanceof SplashOverlay) || o instanceof AtenasLoading) { System.out.println("[Atenas] pantalla de carga: overlay no compatible: " + o.getClass().getName()); return; }
             ResourceReload rr = null;
             for (Class<?> c = o.getClass(); c != null && c != Object.class && rr == null; c = c.getSuperclass()) {
                 for (Field f : c.getDeclaredFields()) {
                     if (ResourceReload.class.isAssignableFrom(f.getType())) { f.setAccessible(true); Object v = f.get(o); if (v instanceof ResourceReload) { rr = (ResourceReload) v; break; } }
                 }
             }
-            if (rr == null) return;
+            if (rr == null) { System.out.println("[Atenas] pantalla de carga: no se encontro el ResourceReload en " + o.getClass().getName()); return; }
             mc.setOverlay(new AtenasLoading(mc, o, rr));
             System.out.println("[Atenas] pantalla de carga propia instalada");
-        } catch (Throwable t) { handled = true; }
+        } catch (Throwable t) { handled = true; System.out.println("[Atenas] pantalla de carga: fallo al instalar: " + t); t.printStackTrace(); }
     }
 
     @Override
@@ -66,8 +68,20 @@ public final class AtenasLoading extends Overlay {
         try {
             orig.render(g, mx, my, pt);
             long now = System.currentTimeMillis();
-            if (doneAt < 0 && reload.isComplete()) doneAt = now;
+            if (doneAt < 0 && reload.isComplete()) { doneAt = now; System.out.println("[Atenas] recarga de recursos completa"); }
             float f = doneAt < 0 ? -1f : (now - doneAt) / 1000f;
+            if (doneAt >= 0) {
+                int sec = (int) f;
+                if (sec > lastSec && sec <= 8) {
+                    lastSec = sec;
+                    System.out.println("[Atenas] carga: +" + sec + "s pantalla=" + (mc.currentScreen == null ? "null" : mc.currentScreen.getClass().getName()) + " overlay=" + (mc.getOverlay() == null ? "null" : mc.getOverlay().getClass().getSimpleName()));
+                }
+                if (f > 4f) { // vigilante: el overlay original no se quito solo, se quita a la fuerza
+                    System.out.println("[Atenas] carga: el overlay original no se quito en 4 s, se quita a la fuerza");
+                    mc.setOverlay(null);
+                    return;
+                }
+            }
             float target = doneAt < 0 ? MathHelper.clamp(reload.getProgress(), 0f, 0.97f) : 1f;
             shown += (target - shown) * 0.12f;
             if (shown > target) shown = target;
@@ -101,11 +115,6 @@ public final class AtenasLoading extends Overlay {
     private static void bracket(DrawContext g, int x, int y, int len, int dx, int dy, int rgb, float al) {
         g.fill(Math.min(x, x + dx * len), y, Math.max(x, x + dx * len) + 1, y + 1, a(rgb, al));
         g.fill(x, Math.min(y, y + dy * len), x + 1, Math.max(y, y + dy * len) + 1, a(rgb, al));
-    }
-
-    private void ctext(DrawContext g, String s, int cx, int y, int rgb, float alpha) {
-        int w = mc.textRenderer.getWidth(s);
-        g.drawText(mc.textRenderer, s, cx - w / 2, y, a(rgb, alpha), false);
     }
 
     private void draw(DrawContext g, float alpha, float t) {
@@ -162,9 +171,9 @@ public final class AtenasLoading extends Overlay {
             }
         }
 
-        int ty = Math.round(ly + logoS + 14 * k);
-        ctext(g, "A T E N A S", cx, ty, 0xE9E3FF, alpha);
-        ctext(g, "C L I E N T   \u00b7   1.21.11", cx, ty + 12, 0x22D3EE, alpha);
+        float ty = ly + logoS + 13.9f * k;
+        ty += TextTex.draw(g, mc, "A T E N A S", 21.4f * k, 0xE9E3FF, cx, ty, true, alpha) + 1.1f * k;
+        TextTex.draw(g, mc, "C  L  I  E  N  T   \u00b7   1 . 2 1 . 1 1", 7.5f * k, 0x22D3EE, cx, ty, true, alpha);
 
         final int bw = Math.round(260 * k), bh = Math.max(5, Math.round(7 * k));
         final int bx = cx - bw / 2, by = Math.round(h / 2f + 52 * k);
@@ -197,12 +206,11 @@ public final class AtenasLoading extends Overlay {
         }
         g.fillGradient(bx, by - Math.round(6 * k), bx + Math.round(bw * prog), by, a(0x8B5CF6, 0f), a(0x8B5CF6, 0.16f * alpha));
 
-        String status = doneAt < 0 ? TIPS[(int) (t / 2.2f) % TIPS.length] : "Abriendo el men\u00fa";
+        String status = doneAt < 0 && prog < 0.97f ? TIPS[(int) (t / 2.2f) % TIPS.length] : "Abriendo el men\u00fa";
         int dots = 1 + (int) (t * 2.5f) % 3;
-        g.drawText(mc.textRenderer, status + "...".substring(0, dots), bx, by + bh + 8, a(0x9B97B8, alpha), false);
-        String pc = Math.round(prog * 100f) + "%";
-        g.drawText(mc.textRenderer, pc, bx + bw - mc.textRenderer.getWidth(pc), by + bh + 8, a(0xF1EEFC, alpha), false);
-        ctext(g, "ATENAS  \u00b7  iniciando", cx, h - m - 10, 0x6D6A8F, alpha);
+        TextTex.draw(g, mc, status + "...".substring(0, dots), 7.5f * k, 0x9B97B8, bx + 48f * k, by + bh + 8.6f * k, false, alpha);
+        TextTex.draw(g, mc, Math.round(prog * 100f) + "%", 12.9f * k, 0xF1EEFC, bx + bw - 13.9f * k, by + bh + 5.4f * k, true, alpha);
+        TextTex.draw(g, mc, "ATENAS  \u00b7  iniciando", 5.9f * k, 0x6D6A8F, cx, h - m - 7.5f * k, false, alpha);
     }
 
     private boolean loadLogo() {

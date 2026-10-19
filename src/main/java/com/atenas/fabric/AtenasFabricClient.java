@@ -27,20 +27,28 @@ import net.minecraft.text.Text;
 public final class AtenasFabricClient implements ClientModInitializer {
     public static final String VERSION = "0.3.0";
 
+    private static final java.util.Set<String> FAILED = new java.util.HashSet<>();
+
+    /** Un fallo en un modulo no debe tumbar ni congelar el juego: se registra UNA vez en el log y se sigue. */
+    private static void safe(String name, java.util.function.Consumer<net.minecraft.client.MinecraftClient> task, net.minecraft.client.MinecraftClient mc) {
+        try { task.accept(mc); }
+        catch (Throwable t) { if (FAILED.add(name)) { System.out.println("[Atenas] modulo '" + name + "' fallo: " + t); t.printStackTrace(); } }
+    }
+
     @Override
     public void onInitializeClient() {
         System.out.println("[AtenasClient] 1.21.11 listo. Waypoints en " + SharedDir.dir());
 
         Mods.init();
-        ClientTickEvents.END_CLIENT_TICK.register(AtenasLoading::tryInstall);
-        ClientTickEvents.END_CLIENT_TICK.register(Mods::tick);
-        ClientTickEvents.END_CLIENT_TICK.register(com.atenas.fabric.hud.Extras::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("loading", AtenasLoading::tryInstall, c));
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("mods", Mods::tick, c));
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("extras", com.atenas.fabric.hud.Extras::tick, c));
         com.atenas.fabric.hud.Extras.register();
         net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback.EVENT.register((type, renderer, helper, ctx) -> {
             if (type == net.minecraft.entity.EntityType.PLAYER) helper.register(new com.atenas.fabric.cosmetics.CosmeticLayer(renderer));
         });
-        ClientTickEvents.END_CLIENT_TICK.register(com.atenas.fabric.hud.HudExtras::tick);
-        ClientTickEvents.END_CLIENT_TICK.register(com.atenas.fabric.cosmetics.CosmeticSync::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("hudextras", com.atenas.fabric.hud.HudExtras::tick, c));
+        ClientTickEvents.END_CLIENT_TICK.register(c -> { if (c.getOverlay() == null) safe("cosmeticsync", com.atenas.fabric.cosmetics.CosmeticSync::tick, c); });
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.of("atenasclientfabric", "hud"), Hud::render);
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
