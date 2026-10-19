@@ -103,7 +103,11 @@ public final class AtenasLoading extends Overlay {
         g.fill(x, Math.min(y, y + dy * len), x + 1, Math.max(y, y + dy * len) + 1, a(rgb, al));
     }
 
+    /** Texto SOLO con la recarga terminada: antes los shaders y la fuente aun no estan cargados y el pipeline gui_text queda roto (pantalla negra). */
+    private boolean textOk() { return doneAt >= 0; }
+
     private void ctext(DrawContext g, String s, int cx, int y, int rgb, float alpha) {
+        if (!textOk()) return;
         int w = mc.textRenderer.getWidth(s);
         g.drawText(mc.textRenderer, s, cx - w / 2, y, a(rgb, alpha), false);
     }
@@ -197,6 +201,7 @@ public final class AtenasLoading extends Overlay {
         }
         g.fillGradient(bx, by - Math.round(6 * k), bx + Math.round(bw * prog), by, a(0x8B5CF6, 0f), a(0x8B5CF6, 0.16f * alpha));
 
+        if (!textOk()) return;
         String status = doneAt < 0 ? TIPS[(int) (t / 2.2f) % TIPS.length] : "Abriendo el men\u00fa";
         int dots = 1 + (int) (t * 2.5f) % 3;
         g.drawText(mc.textRenderer, status + "...".substring(0, dots), bx, by + bh + 8, a(0x9B97B8, alpha), false);
