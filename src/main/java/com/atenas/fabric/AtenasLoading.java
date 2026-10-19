@@ -47,17 +47,17 @@ public final class AtenasLoading extends Overlay {
             Overlay o = mc.getOverlay();
             if (o == null) { if (++misses > 1200) handled = true; return; }
             handled = true;
-            if (!(o instanceof SplashOverlay) || o instanceof AtenasLoading) return;
+            if (!(o instanceof SplashOverlay) || o instanceof AtenasLoading) { System.out.println("[Atenas] pantalla de carga: overlay no compatible: " + o.getClass().getName()); return; }
             ResourceReload rr = null;
             for (Class<?> c = o.getClass(); c != null && c != Object.class && rr == null; c = c.getSuperclass()) {
                 for (Field f : c.getDeclaredFields()) {
                     if (ResourceReload.class.isAssignableFrom(f.getType())) { f.setAccessible(true); Object v = f.get(o); if (v instanceof ResourceReload) { rr = (ResourceReload) v; break; } }
                 }
             }
-            if (rr == null) return;
+            if (rr == null) { System.out.println("[Atenas] pantalla de carga: no se encontro el ResourceReload en " + o.getClass().getName()); return; }
             mc.setOverlay(new AtenasLoading(mc, o, rr));
             System.out.println("[Atenas] pantalla de carga propia instalada");
-        } catch (Throwable t) { handled = true; }
+        } catch (Throwable t) { handled = true; System.out.println("[Atenas] pantalla de carga: fallo al instalar: " + t); t.printStackTrace(); }
     }
 
     @Override
