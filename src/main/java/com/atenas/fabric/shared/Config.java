@@ -26,6 +26,12 @@ public final class Config {
         return v == null ? def : Boolean.parseBoolean(v);
     }
 
+    public static synchronized void set(String key, boolean v) {
+        load();
+        P.setProperty(key, Boolean.toString(v));
+        try (FileOutputStream out = new FileOutputStream(file())) { P.store(out, "Atenas Client 1.21.11"); } catch (Exception ignored) { }
+    }
+
     public static synchronized boolean toggle(String key, boolean def) {
         boolean n = !get(key, def);
         P.setProperty(key, Boolean.toString(n));

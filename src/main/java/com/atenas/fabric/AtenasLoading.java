@@ -43,6 +43,7 @@ public final class AtenasLoading extends Overlay {
     /** Llamar cada tick: solo actua una vez, con el overlay de carga del arranque. */
     public static void tryInstall(MinecraftClient mc) {
         if (handled) return;
+        if (!com.atenas.fabric.shared.Config.get("atenasloading", true)) { handled = true; System.out.println("[Atenas] pantalla de carga propia desactivada por config (atenasloading=false)"); return; }
         try {
             Overlay o = mc.getOverlay();
             if (o == null) { if (++misses > 1200) handled = true; return; }
@@ -66,7 +67,7 @@ public final class AtenasLoading extends Overlay {
         try {
             orig.render(g, mx, my, pt);
             long now = System.currentTimeMillis();
-            if (doneAt < 0 && reload.isComplete()) doneAt = now;
+            if (doneAt < 0 && reload.isComplete()) { doneAt = now; System.out.println("[Atenas] recarga de recursos completa"); }
             float f = doneAt < 0 ? -1f : (now - doneAt) / 1000f;
             float target = doneAt < 0 ? MathHelper.clamp(reload.getProgress(), 0f, 0.97f) : 1f;
             shown += (target - shown) * 0.12f;
