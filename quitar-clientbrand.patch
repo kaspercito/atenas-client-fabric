@@ -1,0 +1,70 @@
+From 9d92249f23a5c8dcb27f5c8d48d0d1aa665ae2b8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 09:19:08 -0500
+Subject: [PATCH] Quitar ClientBrandMixin (getClientModName no existe en yarn
+ 1.21.11)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014hKMfzubXBu8gXWs94xyjE
+---
+ .../com/atenas/fabric/AtenasFabricClient.java |  3 ---
+ .../atenas/fabric/mixin/ClientBrandMixin.java | 20 -------------------
+ .../resources/atenasclientfabric.mixins.json  |  2 +-
+ 3 files changed, 1 insertion(+), 24 deletions(-)
+ delete mode 100644 src/main/java/com/atenas/fabric/mixin/ClientBrandMixin.java
+
+diff --git a/src/main/java/com/atenas/fabric/AtenasFabricClient.java b/src/main/java/com/atenas/fabric/AtenasFabricClient.java
+index dfa18b5..089362e 100644
+--- a/src/main/java/com/atenas/fabric/AtenasFabricClient.java
++++ b/src/main/java/com/atenas/fabric/AtenasFabricClient.java
+@@ -38,9 +38,6 @@ public final class AtenasFabricClient implements ClientModInitializer {
+     @Override
+     public void onInitializeClient() {
+         System.out.println("[AtenasClient] 1.21.11 listo. Waypoints en " + SharedDir.dir());
+-        String brand = net.minecraft.client.ClientBrandRetriever.getClientModName();
+-        if ("atenasclient".equals(brand)) System.out.println("[AtenasClient] Marca de F3: " + brand);
+-        else System.out.println("[AtenasClient] AVISO: la marca de F3 sigue siendo '" + brand + "' (ClientBrandMixin no se aplico).");
+ 
+         Mods.init();
+         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("loading", AtenasLoading::tryInstall, c));
+diff --git a/src/main/java/com/atenas/fabric/mixin/ClientBrandMixin.java b/src/main/java/com/atenas/fabric/mixin/ClientBrandMixin.java
+deleted file mode 100644
+index 244909a..0000000
+--- a/src/main/java/com/atenas/fabric/mixin/ClientBrandMixin.java
++++ /dev/null
+@@ -1,20 +0,0 @@
+-package com.atenas.fabric.mixin;
+-
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+-
+-import net.minecraft.client.ClientBrandRetriever;
+-
+-/**
+- * Nombre del cliente en F3 ("Minecraft 1.21.11 (1.21.11/atenasclient)"). El texto sale de ClientBrandRetriever.getClientModName():
+- * vanilla devuelve "vanilla" y Fabric Loader parchea ese metodo para devolver "fabric". Aqui se sustituye el valor final.
+- * Es la misma marca que se envia al servidor y se ve en los informes de fallo. require = 0: si el metodo no se encuentra, se salta
+- * sin tumbar el juego (AtenasFabricClient avisa en el log si la marca no quedo aplicada).
+- */
+-@Mixin(ClientBrandRetriever.class)
+-public abstract class ClientBrandMixin {
+-    @Inject(method = "getClientModName", at = @At("RETURN"), cancellable = true, require = 0)
+-    private static void atenas$brand(CallbackInfoReturnable<String> cir) { cir.setReturnValue("atenasclient"); }
+-}
+diff --git a/src/main/resources/atenasclientfabric.mixins.json b/src/main/resources/atenasclientfabric.mixins.json
+index 0617c40..7e97d9a 100644
+--- a/src/main/resources/atenasclientfabric.mixins.json
++++ b/src/main/resources/atenasclientfabric.mixins.json
+@@ -4,6 +4,6 @@
+   "package": "com.atenas.fabric.mixin",
+   "compatibilityLevel": "JAVA_21",
+   "refmap": "atenasclientfabric.refmap.json",
+-  "client": ["ClientBrandMixin", "PlayerCapeMixin", "NametagMixin", "ChatHudMixin", "FreelookMixin", "CameraMixin", "ZoomFovMixin", "ZoomScrollMixin", "PlayerListHudMixin"],
++  "client": ["PlayerCapeMixin", "NametagMixin", "ChatHudMixin", "FreelookMixin", "CameraMixin", "ZoomFovMixin", "ZoomScrollMixin", "PlayerListHudMixin"],
+   "injectors": { "defaultRequire": 0 }
+ }
+-- 
+2.43.0
+
