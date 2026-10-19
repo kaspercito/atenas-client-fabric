@@ -9,7 +9,7 @@ version = project.mod_version
 group = project.maven_group
 base { archivesName = project.archives_base_name }
 
-loom { mixin { defaultRefmapName = "atenasclientfabric.refmap.json" } }
+loom { mixin { useLegacyMixinAp = true; defaultRefmapName = "atenasclientfabric.refmap.json" } }
 
 repositories { }
 
