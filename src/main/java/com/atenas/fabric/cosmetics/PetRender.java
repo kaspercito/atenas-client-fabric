@@ -30,7 +30,7 @@ import org.joml.Vector3f;
 public final class PetRender {
     private PetRender() {}
 
-    private static final class Piece { String name, parent; float[] s = new float[3], o = new float[3], at = new float[3], uv = new float[2]; }
+    private static final class Piece { String name, parent, role = ""; float[] s = new float[3], o = new float[3], at = new float[3], uv = new float[2]; }
     private static final class Kind { float scale = 1f, tailUp, tailCurl, earRest; boolean hop; List<Piece> pieces = new ArrayList<>(); }
     private static final class Pet { double x, z, y; double hx, hz = -1; float walk; long last; boolean init; }
 
@@ -62,6 +62,7 @@ public final class PetRender {
                     Piece p = new Piece();
                     p.name = po.get("n").getAsString();
                     p.parent = po.has("p") ? po.get("p").getAsString() : "";
+                    p.role = po.has("role") ? po.get("role").getAsString() : "";
                     for (int i = 0; i < 3; i++) { p.s[i] = po.getAsJsonArray("s").get(i).getAsFloat(); p.o[i] = po.getAsJsonArray("o").get(i).getAsFloat(); p.at[i] = po.getAsJsonArray("at").get(i).getAsFloat(); }
                     for (int i = 0; i < 2; i++) p.uv[i] = po.getAsJsonArray("uv").get(i).getAsFloat();
                     kk.pieces.add(p);
