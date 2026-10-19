@@ -92,7 +92,7 @@ public final class Social {
                 JsonObject ch = raw(name, "/auth/challenge", new JsonObject());
                 String sid = ch.get("serverId").getAsString();
                 try {
-                    mc.getSessionService().joinServer(mc.getSession().getUuidOrNull(), mc.getSession().getAccessToken(), sid);
+                    sessionService().joinServer(mc.getSession().getUuidOrNull(), mc.getSession().getAccessToken(), sid);
                 } catch (Exception e) { // cuenta sin conexion o sesion caducada: todo funciona menos lo privado
                     failedFor = low; failedAt = System.currentTimeMillis(); failedHard = true;
                     System.err.println("[AtenasClient] verificacion: Mojang rechazo la sesion (" + e.getMessage() + ")");
@@ -112,6 +112,16 @@ public final class Social {
             System.err.println("[AtenasClient] verificacion: " + e.getMessage());
             failedFor = low; failedAt = System.currentTimeMillis(); failedHard = false;
         }
+    }
+
+    private static volatile com.mojang.authlib.minecraft.MinecraftSessionService sessions;
+
+    /** Servicio de sesion de Mojang (authlib directo: no depende del nombre del getter en Yarn). */
+    private static com.mojang.authlib.minecraft.MinecraftSessionService sessionService() {
+        if (sessions == null) {
+            sessions = new com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService(java.net.Proxy.NO_PROXY).createMinecraftSessionService();
+        }
+        return sessions;
     }
 
     private static JsonObject raw(String name, String route, JsonObject body) throws Exception {
