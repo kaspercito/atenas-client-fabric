@@ -2,7 +2,6 @@ package com.atenas.fabric.hud;
 
 import java.util.Locale;
 
-import com.atenas.fabric.cosmetics.CosmeticSync;
 import com.atenas.fabric.shared.Config;
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
@@ -11,13 +10,11 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.EntityHitResult;
 
-/** Combo, Reach, Crosshair propio, TAB y scoreboard sin fondo y logo de Atenas en el TAB. */
+/** Combo, Reach, Crosshair propio, scoreboard sin fondo (el TAB lo resuelve PlayerListHudMixin). */
 public final class Extras {
     private Extras() {}
 
@@ -48,10 +45,9 @@ public final class Extras {
             if (!Config.get("crosshair", true)) { orig.render(ctx, tick); return; }
             drawCrosshair(ctx);
         });
-        // TAB y scoreboard sin fondo: se pone a 0 la opacidad del fondo de texto solo mientras se dibujan
-        HudElementRegistry.replaceElement(VanillaHudElements.PLAYER_LIST, orig -> (HudElement) (ctx, tick) -> {
-            if (Config.get("nobg", true)) TabList.render(MinecraftClient.getInstance(), ctx); else orig.render(ctx, tick);
-        });
+        // TAB (el de vanilla, como en 1.8.9; PlayerListHudMixin quita fondo/cuadros y pone el logo) y scoreboard sin fondo:
+        // ademas se pone a 0 la opacidad del fondo de texto solo mientras se dibujan (respaldo si el mixin no encaja)
+        HudElementRegistry.replaceElement(VanillaHudElements.PLAYER_LIST, orig -> (HudElement) (ctx, tick) -> noBg(orig, ctx, tick));
         HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, orig -> (HudElement) (ctx, tick) -> noBg(orig, ctx, tick));
     }
 
@@ -101,18 +97,5 @@ public final class Extras {
         if (h > 0 && prevHurt == 0) combo = 0;
         prevHurt = h;
         if (combo > 0 && System.currentTimeMillis() - lastHit > 3000L) combo = 0;
-
-        // logo de Atenas en el TAB: se antepone el glifo al nombre de quienes usan el cliente/mod
-        if (mc.getNetworkHandler() != null && mc.world != null && mc.player.age % 10 == 0) {
-            boolean on = Config.get("tablogo", true);
-            for (PlayerListEntry e : mc.getNetworkHandler().getPlayerList()) {
-                String n = e.getProfile().name();
-                boolean user = on && (n.equalsIgnoreCase(mc.getSession().getUsername()) || CosmeticSync.isUserName(n));
-                Text cur = e.getDisplayName();
-                boolean has = cur != null && cur.getString().startsWith(CosmeticSync.LOGO);
-                if (user && !has) e.setDisplayName(Text.literal(CosmeticSync.LOGO + " ").append(Text.literal(n)));
-                else if (!user && has) e.setDisplayName(null);
-            }
-        }
     }
 }

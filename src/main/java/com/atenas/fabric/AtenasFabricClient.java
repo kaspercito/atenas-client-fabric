@@ -38,6 +38,9 @@ public final class AtenasFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         System.out.println("[AtenasClient] 1.21.11 listo. Waypoints en " + SharedDir.dir());
+        String brand = net.minecraft.client.ClientBrandRetriever.getClientModName();
+        if ("atenasclient".equals(brand)) System.out.println("[AtenasClient] Marca de F3: " + brand);
+        else System.out.println("[AtenasClient] AVISO: la marca de F3 sigue siendo '" + brand + "' (ClientBrandMixin no se aplico).");
 
         Mods.init();
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("loading", AtenasLoading::tryInstall, c));

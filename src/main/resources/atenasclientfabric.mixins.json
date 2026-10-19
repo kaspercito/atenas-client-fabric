@@ -4,6 +4,6 @@
   "package": "com.atenas.fabric.mixin",
   "compatibilityLevel": "JAVA_21",
   "refmap": "atenasclientfabric.refmap.json",
-  "client": ["PlayerCapeMixin", "NametagMixin", "ChatHudMixin", "FreelookMixin", "CameraMixin", "ZoomFovMixin", "ZoomScrollMixin"],
+  "client": ["ClientBrandMixin", "PlayerCapeMixin", "NametagMixin", "ChatHudMixin", "FreelookMixin", "CameraMixin", "ZoomFovMixin", "ZoomScrollMixin", "PlayerListHudMixin"],
   "injectors": { "defaultRequire": 0 }
 }
