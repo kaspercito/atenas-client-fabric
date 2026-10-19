@@ -13,6 +13,7 @@ import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.EntityRenderState;
+import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
@@ -64,7 +65,12 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
             if (item != null) wings(ms, queue, light, p, item, model, d2, limbAngle, limbDistance);
         }
         String petId = CosmeticSync.partOf(p, "pet");
-        if (petId != null && d2 <= HatMesh.MAX_DIST_SQ) PetRender.render(ms, queue, light, p, petId);
+        if (petId != null && d2 <= HatMesh.MAX_DIST_SQ) {
+            // vista previa del menu: pantalla de cosmeticos abierta, tu personaje y primera persona (el mundo no te dibuja)
+            boolean preview = p == mc.player && mc.currentScreen instanceof CosmeticsScreen && mc.options.getPerspective().isFirstPerson();
+            float by = state instanceof LivingEntityRenderState ls ? ls.bodyYaw : p.getBodyYaw();
+            PetRender.render(ms, queue, light, p.getId(), state.x, state.y, state.z, by, preview, age, petId);
+        }
         if (hatId != null && d2 <= HatMesh.MAX_DIST_SQ) {
             Cosmetics.Item item = Cosmetics.find("hat", hatId);
             if (item != null) hat(ms, queue, light, item, model, age);

@@ -36,6 +36,30 @@ public final class CosmeticsScreen extends Screen {
         tabW = Math.min(70, (gw - 8) / TYPES.length - 4);
     }
 
+    private static final java.util.Map<Identifier, int[]> ICON_SIZES = new java.util.HashMap<>();
+
+    /** Medidas reales del PNG (cabecera IHDR). */
+    private int[] iconSize(Identifier id) {
+        int[] r = ICON_SIZES.get(id);
+        if (r != null) return r;
+        r = new int[] {32, 32};
+        try {
+            var res = client.getResourceManager().getResource(id);
+            if (res.isPresent()) {
+                try (java.io.InputStream in = res.get().getInputStream()) {
+                    byte[] h = in.readNBytes(24);
+                    if (h.length == 24) {
+                        int w = ((h[16] & 255) << 24) | ((h[17] & 255) << 16) | ((h[18] & 255) << 8) | (h[19] & 255);
+                        int hh = ((h[20] & 255) << 24) | ((h[21] & 255) << 16) | ((h[22] & 255) << 8) | (h[23] & 255);
+                        if (w > 0 && hh > 0) r = new int[] {w, hh};
+                    }
+                }
+            }
+        } catch (Throwable ignored) { }
+        ICON_SIZES.put(id, r);
+        return r;
+    }
+
     private int cols() { return Math.max(1, (gw + GAP) / (CW + GAP)); }
 
     /** null = "Ninguno". */
@@ -116,9 +140,11 @@ public final class CosmeticsScreen extends Screen {
                 Ui.centered(g, textRenderer, "Ninguno", x + CW / 2, y + CH - 14, on ? Ui.TEXT : Ui.DIM);
             } else {
                 g.fill(x + (CW - 32) / 2, y + 6, x + (CW - 32) / 2 + 32, y + 38, Ui.a(it.color, 0.25f));
+                Identifier icon = Identifier.of(Cosmetics.NS, "textures/cosmetics/icons/" + TYPES[tab] + "_" + it.id + ".png");
+                int[] sz = iconSize(icon);
                 try {
-                    g.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.of(Cosmetics.NS, "textures/cosmetics/icons/" + TYPES[tab] + "_" + it.id + ".png"),
-                        x + (CW - 32) / 2, y + 6, 0f, 0f, 32, 32, 32, 32, 32, 32);
+                    // los iconos miden 32, 64 o 128 px: se dibuja la textura ENTERA (antes se pedia siempre una region de 32x32 y los de 128 salian recortados)
+                    g.drawTexture(RenderPipelines.GUI_TEXTURED, icon, x + (CW - 32) / 2, y + 6, 0f, 0f, 32, 32, sz[0], sz[1], sz[0], sz[1]);
                 } catch (Throwable ignored) { }
                 Ui.centered(g, textRenderer, Ui.fit(textRenderer, it.name, CW - 4), x + CW / 2, y + CH - 14, on ? Ui.TEXT : Ui.DIM);
             }

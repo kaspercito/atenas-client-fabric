@@ -1,48 +1,37 @@
 package com.atenas.fabric;
 
-import java.io.InputStream;
-
+import com.atenas.fabric.gui.Faces;
+import com.atenas.fabric.gui.PackInfo;
 import com.atenas.fabric.gui.Ui;
+import com.atenas.fabric.net.Accounts;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
-import net.minecraft.client.network.ServerAddress;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 
-/** Menu principal de Atenas (paleta violeta, logo, rejilla). Reemplaza al TitleScreen de vanilla. Boton ★ = servidor del pack (-Datenas.server). */
+/** Menu principal de Atenas (paleta violeta, logo, rejilla). Reemplaza al TitleScreen de vanilla. Sin acceso directo a ningun servidor. */
 public final class AtenasTitleScreen extends Screen {
-    private static final Identifier LOGO = Identifier.of("atenasclientfabric", "dyn/title_logo");
-    private static boolean logoTried, logoOk;
-    private final long t0 = System.currentTimeMillis();
-    private final float[] sx = new float[60], sy = new float[60];
+    private boolean tight;
+    private int chipX, chipY, chipW, chipH;
 
     public AtenasTitleScreen() {
         super(Text.literal("Atenas"));
-        java.util.Random r = new java.util.Random(11);
-        for (int i = 0; i < sx.length; i++) { sx[i] = r.nextFloat(); sy[i] = r.nextFloat() * 0.8f; }
     }
-
-    private static String prop(String k) { String v = System.getProperty(k); return v == null ? "" : v.trim(); }
 
     private int top, logoS, bw, bh, gap, btnY, sh, brandH;
     private float nameScale;
-    private Ui.Btn friendsBtn;
+    private Ui.MenuBtn friendsBtn;
+    private static boolean readyAnnounced;
 
     private void layout() {
-        boolean hasServer = !prop("atenas.server").isEmpty();
-        int avail = height - 14 - (height < 300 ? 26 : 46);
+        tight = height < 300;
+        int avail = height - 14 - (tight ? 26 : 46);
         float[][] tiers = {{64, 3f, 112, 24, 26, 5, 4}, {40, 2f, 82, 12, 22, 4, 4}, {28, 1.5f, 64, 8, 20, 3, 3}, {0, 1.5f, 32, 6, 18, 2, 3}};
-        int rows = hasServer ? 4 : 3, total = 0;
+        int rows = 3, total = 0;
         for (int t = 0; t < tiers.length; t++) {
             float[] v = tiers[t];
             logoS = (int) v[0]; nameScale = v[1]; brandH = (int) v[2]; int sep = (int) v[3]; bh = (int) v[4]; gap = (int) v[5]; sh = bh - (int) v[6]; bw = 250;
@@ -57,30 +46,29 @@ public final class AtenasTitleScreen extends Screen {
     protected void init() {
         layout();
         int x = width / 2 - bw / 2, y = btnY;
-        String server = prop("atenas.server");
-        if (!server.isEmpty()) {
-            String name = prop("atenas.servername").isEmpty() ? "Atenas" : prop("atenas.servername");
-            addDrawableChild(new Ui.Btn(x, y, bw, bh, Text.literal("\u2605 " + name), b -> join(server, name)));
-            y += bh + gap;
-        }
-        addDrawableChild(new Ui.Btn(x, y, bw, bh, Text.literal("Un jugador"), b -> client.setScreen(new SelectWorldScreen(this))));
-        addDrawableChild(new Ui.Btn(x, y + bh + gap, bw, bh, Text.literal("Multijugador"), b -> client.setScreen(new MultiplayerScreen(this))));
-        addDrawableChild(new Ui.Btn(x, y + 2 * (bh + gap), bw, bh, Text.literal("Opciones"), b -> client.setScreen(new OptionsScreen(this, client.options))));
+        addDrawableChild(new Ui.MenuBtn(x, y, bw, bh, Text.literal("Un jugador"), false, b -> client.setScreen(new SelectWorldScreen(this))));
+        addDrawableChild(new Ui.MenuBtn(x, y + bh + gap, bw, bh, Text.literal("Multijugador"), false, b -> { PackInfo.ensureFeatured(); client.setScreen(new MultiplayerScreen(this)); }));
+        addDrawableChild(new Ui.MenuBtn(x, y + 2 * (bh + gap), bw, bh, Text.literal("Opciones"), false, b -> client.setScreen(new OptionsScreen(this, client.options))));
         int y2 = y + 3 * (bh + gap) - gap + 8, third = (bw - 12) / 3;
-        friendsBtn = new Ui.Btn(x, y2, third, sh, Text.literal("Amigos"), b -> client.setScreen(new com.atenas.fabric.gui.FriendsScreen(this)));
+        friendsBtn = new Ui.MenuBtn(x, y2, third, sh, Text.literal("Amigos"), true, b -> client.setScreen(new com.atenas.fabric.gui.FriendsScreen(this)));
         addDrawableChild(friendsBtn);
-        addDrawableChild(new Ui.Btn(x + third + 6, y2, third, sh, Text.literal("Cosm\u00e9ticos"), b -> {
+        addDrawableChild(new Ui.MenuBtn(x + third + 6, y2, third, sh, Text.literal("Cosm\u00e9ticos"), true, b -> {
             com.atenas.fabric.cosmetics.CosmeticSync.refreshNow();
             client.setScreen(new com.atenas.fabric.cosmetics.CosmeticsScreen(this));
         }));
-        addDrawableChild(new Ui.Btn(x + 2 * (third + 6), y2, bw - 2 * (third + 6), sh, Text.literal("Cuenta"), b -> client.setScreen(new com.atenas.fabric.gui.AccountScreen(this))));
-        addDrawableChild(new Ui.Btn(width - 32, 10, 22, 18, Text.literal("X"), b -> client.scheduleStop()));
+        addDrawableChild(new Ui.MenuBtn(x + 2 * (third + 6), y2, bw - 2 * (third + 6), sh, Text.literal("Cuenta"), true, b -> client.setScreen(new com.atenas.fabric.gui.AccountScreen(this))));
+        addDrawableChild(new Ui.CloseBtn(width - 32, 10, 22, b -> client.scheduleStop()));
         com.atenas.fabric.net.Friends.sync(false, "");
+        if (!readyAnnounced) { readyAnnounced = true; System.out.println("[Atenas] MENU_READY"); }
     }
 
-    private void join(String addr, String name) {
-        try { ConnectScreen.connect(this, client, ServerAddress.parse(addr), new ServerInfo(name, addr, ServerInfo.ServerType.OTHER), false, null); }
-        catch (Throwable t) { client.setScreen(new MultiplayerScreen(this)); }
+    @Override
+    public boolean mouseClicked(Click click, boolean doubled) {
+        if (click.button() == 0 && Ui.inside(click.x(), click.y(), chipX, chipY, chipW, chipH)) {
+            client.setScreen(new com.atenas.fabric.gui.AccountScreen(this));
+            return true;
+        }
+        return super.mouseClicked(click, doubled);
     }
 
     private static int a(int rgb, float al) { return (Math.max(0, Math.min(255, (int) (al * 255f))) << 24) | (rgb & 0xFFFFFF); }
@@ -103,85 +91,84 @@ public final class AtenasTitleScreen extends Screen {
 
     private void draw(DrawContext g, int mx, int my, float delta) {
         if (!logged) { logged = true; System.out.println("[Atenas] menu principal: primer dibujo " + width + "x" + height); }
-        float t = (System.currentTimeMillis() - t0) / 1000f;
-        g.fillGradient(0, 0, width, height, 0xFF04030B, 0xFF120A2E);
-        g.fillGradient(0, (int) (height * 0.55f), width, height, a(0x22D3EE, 0f), a(0x8B5CF6, 0.20f));
-        float horizon = height * 0.58f, flow = (t * 0.2f) % 1f;
-        for (int i = 0; i < 14; i++) {
-            float p = (i + flow) / 14f;
-            int gy = Math.round(horizon + (height - horizon) * p * p);
-            g.fill(0, gy, width, gy + 1, a(0x8B5CF6, 0.05f + 0.20f * p));
-        }
-        for (int i = -10; i <= 10; i++) {
-            float gx = width / 2f + i * (width / 16f);
-            for (int yy = (int) horizon; yy < height; yy += 3) {
-                float p = (yy - horizon) / (height - horizon);
-                int xx = Math.round(width / 2f + (gx - width / 2f) * (0.15f + p * 1.1f));
-                g.fill(xx, yy, xx + 1, yy + 1, a(0x22D3EE, 0.03f + 0.10f * p));
-            }
-        }
-        for (int i = 0; i < sx.length; i++) {
-            float tw = 0.25f + 0.55f * (0.5f + 0.5f * (float) Math.sin(t * 1.4f + i));
-            g.fill((int) (sx[i] * width), (int) (sy[i] * height * 0.75f), (int) (sx[i] * width) + 1, (int) (sy[i] * height * 0.75f) + 1, a(0xFFFFFF, tw * 0.7f));
-        }
-        if (!logoTried) { logoTried = true; logoOk = loadLogo(); }
+        long t = System.currentTimeMillis();
+        Ui.animatedBackdrop(g, width, height);
         int nameY = top;
         if (logoS > 0) {
-            float pulse = (float) (0.5 + 0.5 * Math.sin(System.currentTimeMillis() * 0.003));
+            float pulse = (float) (0.5 + 0.5 * Math.sin(t * 0.003));
             for (int gg = 3; gg >= 1; gg--) {
                 int gs = logoS + gg * 10;
-                g.fill(width / 2 - gs / 2, top + logoS / 2 - gs / 2, width / 2 + gs / 2, top + logoS / 2 + gs / 2, a(0x8B5CF6, (8 + 10 * pulse) / gg / 255f));
+                Ui.rect(g, width / 2 - gs / 2, top + logoS / 2 - gs / 2, gs, gs, ((int) ((8 + 10 * pulse) / gg) << 24) | 0x8B5CF6);
             }
-            if (logoOk) g.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, width / 2 - logoS / 2, top, 0f, 0f, logoS, logoS, logoS, logoS, logoS, logoS);
+            Ui.logo(g, width / 2 - logoS / 2, top, logoS);
             nameY = top + logoS + 6;
         }
-        String title = "ATENAS";
-        g.getMatrices().pushMatrix();
-        g.getMatrices().translate(width / 2f, (float) nameY);
-        g.getMatrices().scale(nameScale, nameScale);
-        g.drawText(textRenderer, title, -textRenderer.getWidth(title) / 2, 0, Ui.ACCENT, true);
-        g.getMatrices().popMatrix();
+        com.atenas.fabric.gui.Fx.scaled(g, "ATENAS", width / 2f, nameY, nameScale, Ui.ACCENT, true);
         int subY = nameY + (int) (8 * nameScale) + 4;
-        String sub = "C   L   I   E   N   T";
-        g.drawText(textRenderer, sub, width / 2 - textRenderer.getWidth(sub) / 2, subY, Ui.CYAN, false);
-        g.fill(width / 2 - 60, subY + 12, width / 2 + 60, subY + 13, Ui.ACCENT_DIM);
-        g.fill(width / 2 - 8, subY + 11, width / 2 + 8, subY + 14, Ui.VIOLET);
+        com.atenas.fabric.gui.Fx.scaled(g, "C   L   I   E   N   T", width / 2f, subY, 1f, Ui.CYAN, true);
+        Ui.rect(g, width / 2 - 60, subY + 12, 120, 1, Ui.ACCENT_DIM);
+        Ui.rect(g, width / 2 - 8, subY + 11, 16, 3, Ui.VIOLET);
 
         if (friendsBtn != null) friendsBtn.setMessage(Text.literal(com.atenas.fabric.net.Friends.badge("Amigos")));
         super.render(g, mx, my, delta);
         Ui.paintButtons(g, textRenderer, children());
 
-        // esquinas HUD y greca (igual que 1.8.9)
-        int ga = 0x558B5CF6;
-        for (int gx = 0; gx + 12 <= width; gx += 12) {
-            g.fill(gx, 3, gx + 8, 4, ga); g.fill(gx, 3, gx + 1, 9, ga); g.fill(gx, 8, gx + 5, 9, ga); g.fill(gx + 4, 5, gx + 5, 8, ga);
-        }
-        int c = 0xAA8B5CF6;
-        g.fill(8, 14, 30, 15, c); g.fill(8, 14, 9, 36, c);
-        g.fill(8, height - 9, 30, height - 8, c); g.fill(8, height - 30, 9, height - 8, c);
+        Ui.frame(g, width, height);
 
-        // pie: pack/version (izquierda), atajo (centro), cuenta (derecha)
-        int fy = height < 300 ? height - 20 : height - 22;
-        String who = client.getSession().getUsername();
-        int chipW = textRenderer.getWidth(who) + 30, chipX = width - chipW - 14;
-        Ui.chamfer(g, chipX, fy - 6, chipW, 18, 3, 0xE60D0B1E);
-        Ui.chamferBorder(g, chipX, fy - 6, chipW, 18, 3, 0xFF3A3466);
-        g.fill(chipX + 5, fy - 2, chipX + 15, fy + 8, com.atenas.fabric.net.Friends.usable() ? Ui.GREEN : Ui.OFF);
-        g.drawText(textRenderer, who.isEmpty() ? "?" : who.substring(0, 1).toUpperCase(), chipX + 8, fy, 0xFF090812, false);
-        g.drawText(textRenderer, who, chipX + 21, fy, Ui.TEXT, false);
-        g.drawText(textRenderer, "Atenas Client " + AtenasFabricClient.VERSION + "  \u00b7  1.21.11", 18, fy, Ui.DIM, false);
-        String fr = com.atenas.fabric.net.Friends.badge("Amigos y cosm\u00e9ticos arriba");
-        int frW = textRenderer.getWidth(fr), frX = width / 2 - frW / 2;
-        if (frX > 18 + 190 && frX + frW + 14 < chipX) g.drawText(textRenderer, fr, frX, fy, Ui.DIM, false);
+        // pie: icono + pack (izquierda), atajo (centro), ficha de la cuenta (derecha)
+        int fy = tight ? height - 20 : height - 22, leftX = 18;
+        int chipLeft = drawAccountChip(g, mx, my);
+        PackInfo.drawIcon(g, leftX, fy - 1, PackInfo.kind());
+        String pack = PackInfo.packName();
+        int packX = leftX + 14, verEnd = leftX;
+        if (packX + com.atenas.fabric.gui.Fx.width(pack) + 8 <= chipLeft) {
+            Ui.text(g, pack, packX, fy, Ui.DIM);
+            verEnd = packX + com.atenas.fabric.gui.Fx.width(pack);
+        }
+        String fr = com.atenas.fabric.net.Friends.badge("Shift+Tab  \u00b7  Amigos y chat");
+        int frW = com.atenas.fabric.gui.Fx.width(fr), frX = width / 2 - frW / 2;
+        if (frX > verEnd + 14 && frX + frW + 14 < chipLeft) Ui.text(g, fr, frX, fy, Ui.DIM);
     }
 
-    private boolean loadLogo() {
-        try (InputStream in = AtenasTitleScreen.class.getResourceAsStream("/assets/atenasclientfabric/textures/gui/logo.png")) {
-            if (in == null) return false;
-            NativeImage img = NativeImage.read(in);
-            MinecraftClient.getInstance().getTextureManager().registerTexture(LOGO, new NativeImageBackedTexture(() -> "atenas title logo", img));
-            return true;
-        } catch (Throwable t) { return false; }
+    /** Ficha de la cuenta (como 1.8.9): cabeza con la skin, nick y estado; al pasar el mouse invita a cambiar de cuenta. Devuelve su borde izquierdo. */
+    private int drawAccountChip(DrawContext g, int mx, int my) {
+        String user = client.getSession() == null ? "" : client.getSession().getUsername();
+        boolean online = com.atenas.fabric.net.Friends.usable();
+        boolean off = Accounts.currentIsOffline();
+        boolean over;
+        if (tight) {
+            chipH = 16;
+            chipW = 4 + 12 + 6 + com.atenas.fabric.gui.Fx.width(user) + 8 + 5 + 8;
+            chipX = width - 18 - chipW; chipY = height - 8 - chipH - 2;
+            over = Ui.inside(mx, my, chipX, chipY, chipW, chipH);
+            Ui.rect(g, chipX, chipY, chipW, chipH, over ? Ui.PANEL2 : 0xC00B0E1C);
+            Ui.border(g, chipX, chipY, chipW, chipH, over ? Ui.VIOLET : 0xFF262A48);
+            Ui.rect(g, chipX, chipY, 2, chipH, over ? Ui.ACCENT : Ui.ACCENT_DIM);
+            if (!Faces.draw(g, user, chipX + 4, chipY + 2, 12, 1f, off)) {
+                Ui.rect(g, chipX + 4, chipY + 2, 12, 12, Ui.VIOLET);
+                if (!user.isEmpty()) Ui.centered(g, user.substring(0, 1).toUpperCase(), chipX + 10, chipY + 4, Ui.INK);
+            }
+            Ui.text(g, user, chipX + 22, chipY + 4, over ? Ui.ACCENT : Ui.TEXT);
+            Ui.rect(g, chipX + chipW - 12, chipY + 6, 5, 5, online ? Ui.GREEN : Ui.OFF);
+            return chipX;
+        }
+        chipH = 26;
+        int textW = Math.max(com.atenas.fabric.gui.Fx.width(user), Math.max(com.atenas.fabric.gui.Fx.width("\u25cf en l\u00ednea"), com.atenas.fabric.gui.Fx.width("Cambiar de cuenta")));
+        chipW = 6 + 18 + 7 + textW + 10;
+        chipX = width - 18 - chipW; chipY = height - 16 - chipH;
+        over = Ui.inside(mx, my, chipX, chipY, chipW, chipH);
+        Ui.rect(g, chipX, chipY, chipW, chipH, over ? Ui.PANEL2 : 0xC00B0E1C);
+        Ui.border(g, chipX, chipY, chipW, chipH, over ? Ui.VIOLET : 0xFF262A48);
+        Ui.rect(g, chipX, chipY, 2, chipH, over ? Ui.ACCENT : Ui.ACCENT_DIM);
+        Ui.rect(g, chipX + 5, chipY + 3, 20, 20, over ? Ui.ACCENT : Ui.ACCENT_DIM);
+        if (!Faces.draw(g, user, chipX + 6, chipY + 4, 18, 1f, off)) {
+            Ui.rect(g, chipX + 6, chipY + 4, 18, 18, Ui.VIOLET);
+            if (!user.isEmpty()) Ui.centered(g, user.substring(0, 1).toUpperCase(), chipX + 15, chipY + 9, Ui.INK);
+        }
+        Ui.text(g, user, chipX + 31, chipY + 4, over ? Ui.ACCENT : Ui.TEXT);
+        if (over) Ui.text(g, "Cambiar de cuenta", chipX + 31, chipY + 14, Ui.VIOLET);
+        else Ui.text(g, online ? "\u25cf en l\u00ednea" : "\u25cb desconectado", chipX + 31, chipY + 14, online ? Ui.GREEN : Ui.DIM);
+        return chipX;
     }
 
     @Override

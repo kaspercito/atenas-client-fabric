@@ -22,7 +22,9 @@ public final class TeamSync {
 
     public static Map<String, Mate> mates() { return mates; }
     public static String error() { return error; }
-    public static void clear() { mates = Collections.emptyMap(); }
+    public static void clear() { mates = Collections.emptyMap(); error = ""; last = 0; }
+    /** true si hubo una sincronizacion reciente (el cliente esta en un servidor y Team View corre). */
+    public static boolean active() { return System.currentTimeMillis() - last < 8000L; }
 
     public static void tick(String me, String server, boolean share, boolean friends, int dim, double x, double y, double z, float hp, float max) {
         long now = System.currentTimeMillis();

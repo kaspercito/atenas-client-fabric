@@ -194,7 +194,7 @@ public final class Mods {
         // ---- Team View ----
         String me = mc.getSession().getUsername();
         if (server != null && Social.validName(me) && Config.get("team", true)) {
-            TeamSync.tick(me, server, Config.get("team_share", true), Config.get("team_friends", true), dim,
+            TeamSync.tick(me, server, Settings.b("team", "share"), Settings.b("team", "friends"), dim,
                 mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.player.getHealth(), mc.player.getMaxHealth());
         }
 
@@ -211,7 +211,7 @@ public final class Mods {
 
     public static List<String> toggleNames() {
         List<String> l = new ArrayList<>();
-        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu", "zoom", "perspective", "movement", "chat", "autotext"}) l.add(s);
+        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu", "zoom", "perspective", "movement", "chat", "autotext"}) l.add(s);
         return l;
     }
 }

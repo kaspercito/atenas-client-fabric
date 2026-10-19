@@ -87,12 +87,25 @@ public final class Hud {
             }
         }
         if (Config.get("team", true)) {
+            int col = 0xFF000000 | (Settings.color("team", "color") & 0xFFFFFF);
+            boolean hp = Settings.b("team", "hp"), dist = Settings.b("team", "dist");
+            int shown = 0;
             for (TeamSync.Mate m : TeamSync.mates().values()) {
                 if (m.dim != dim) continue;
                 double dx = m.x - px, dz = m.z - pz;
-                String s = String.format(Locale.ROOT, "%s %s %.0fm  %.0f\u2764", arrow(mc, dx, dz), m.name, Math.sqrt(dx * dx + dz * dz), m.hp / 2f);
-                ctx.drawText(mc.textRenderer, s, cx - mc.textRenderer.getWidth(s) / 2, cy, 0xFF55FF55, true);
-                cy += 10;
+                StringBuilder sb = new StringBuilder(arrow(mc, dx, dz)).append(' ').append(m.name);
+                if (dist) sb.append(String.format(Locale.ROOT, " %.0fm", Math.sqrt(dx * dx + dz * dz)));
+                if (hp) sb.append(String.format(Locale.ROOT, "  %.0f\u2764", m.hp / 2f));
+                String s = sb.toString();
+                ctx.drawText(mc.textRenderer, s, cx - mc.textRenderer.getWidth(s) / 2, cy, col, true);
+                cy += 10; shown++;
+            }
+            if (shown == 0 && Settings.b("team", "status")) {
+                String err = TeamSync.error();
+                String s = !err.isEmpty() ? "Team View: sin conexion"
+                    : !TeamSync.active() ? "Team View: solo en servidores"
+                    : "Team View: nadie cerca";
+                ctx.drawText(mc.textRenderer, s, cx - mc.textRenderer.getWidth(s) / 2, cy, 0xFF9B97B8, true);
             }
         }
         HudPos.end(ctx);

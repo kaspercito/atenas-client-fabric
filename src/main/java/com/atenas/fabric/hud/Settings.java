@@ -39,6 +39,12 @@ public final class Settings {
         bool("hud", "shadow", "Sombra del texto", true);
         color("hud", "color", "Color del texto", 0);
         bool("hud", "bg", "Fondo detras del texto", false);
+        bool("team", "share", "Compartir mi posicion", true);
+        bool("team", "friends", "Ver a mis amigos del cliente", true);
+        bool("team", "hp", "Mostrar vida (corazones)", true);
+        bool("team", "dist", "Mostrar distancia", true);
+        bool("team", "status", "Mostrar estado de la conexion", true);
+        color("team", "color", "Color de companeros", 3);
         bool("cps", "right", "Mostrar clic derecho", true);
         bool("armor", "percent", "Durabilidad en %", false);
         bool("potions", "time", "Mostrar tiempo", true);

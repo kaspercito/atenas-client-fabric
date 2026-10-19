@@ -26,8 +26,6 @@ public final class ConfigScreen extends Screen {
         ITEMS.put("time", new Object[] {"Hora", true});
         ITEMS.put("waypoints", new Object[] {"Waypoints", true});
         ITEMS.put("team", new Object[] {"Team View", true});
-        ITEMS.put("team_share", new Object[] {"Compartir mi posicion", true});
-        ITEMS.put("team_friends", new Object[] {"Ver a mis amigos", true});
         ITEMS.put("voice", new Object[] {"Voice chat", true});
         ITEMS.put("cps", new Object[] {"CPS", true});
         ITEMS.put("ping", new Object[] {"Ping", true});
@@ -61,8 +59,7 @@ public final class ConfigScreen extends Screen {
         m("hud", 1, "Muestra u oculta todo el HUD de Atenas."); m("fps", 1, "Fotogramas por segundo en pantalla.");
         m("coords", 1, "Tus coordenadas X, Y y Z."); m("direction", 1, "Hacia donde miras (N, S, E, O).");
         m("time", 1, "Hora del mundo de Minecraft."); m("waypoints", 1, "Marcas compartidas con 1.8.9 y 1.20.1.");
-        m("team", 4, "Ve la posicion de tu equipo en pantalla."); m("team_share", 4, "Comparte tu posicion con tus amigos.");
-        m("team_friends", 4, "Muestra a tus amigos del cliente."); m("voice", 4, "Chat de voz por proximidad.");
+        m("team", 4, "Ve a tus amigos en el servidor. Engranaje: opciones."); m("voice", 4, "Chat de voz por proximidad.");
         m("cps", 2, "Clics por segundo."); m("ping", 1, "Latencia con el servidor.");
         m("keystrokes", 2, "Teclas W A S D y clics en pantalla."); m("armor", 2, "Durabilidad de tu armadura.");
         m("potions", 2, "Efectos de pocion activos."); m("speed", 1, "Tu velocidad en bloques por segundo.");
