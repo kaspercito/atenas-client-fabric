@@ -67,6 +67,9 @@ public final class Social {
 
     public static void retryVerify() { failedFor = ""; failedAt = 0; }
 
+    /** Cambio de cuenta: la verificacion de la anterior ya no vale. */
+    public static synchronized void resetVerification() { verifiedFor = ""; failedFor = ""; failedAt = 0; }
+
     /** POST al servicio. Si el nick premium ya esta verificado desde otra instalacion, se verifica esta con la sesion de Minecraft y se reintenta. */
     public static JsonObject post(String name, String route, JsonObject body) throws Exception {
         ensureVerified(name, false);

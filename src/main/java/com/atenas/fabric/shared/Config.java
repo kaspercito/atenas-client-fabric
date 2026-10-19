@@ -38,4 +38,26 @@ public final class Config {
         try (FileOutputStream out = new FileOutputStream(file())) { P.store(out, "Atenas Client 1.21.11"); } catch (Exception ignored) { }
         return n;
     }
+
+    // ---- numeros y textos (posiciones y ajustes del HUD). put* no escribe a disco: llama a save() al terminar (por ejemplo al soltar el mouse).
+    public static synchronized int getInt(String key, int def) {
+        load();
+        try { String v = P.getProperty(key); return v == null ? def : Integer.parseInt(v.trim()); } catch (Exception e) { return def; }
+    }
+
+    public static synchronized float getFloat(String key, float def) {
+        load();
+        try { String v = P.getProperty(key); return v == null ? def : Float.parseFloat(v.trim()); } catch (Exception e) { return def; }
+    }
+
+    public static synchronized void putInt(String key, int v) { load(); P.setProperty(key, Integer.toString(v)); }
+
+    public static synchronized void putFloat(String key, float v) { load(); P.setProperty(key, String.format(java.util.Locale.ROOT, "%.2f", v)); }
+
+    public static synchronized void putBool(String key, boolean v) { load(); P.setProperty(key, Boolean.toString(v)); }
+
+    public static synchronized void save() {
+        load();
+        try (FileOutputStream out = new FileOutputStream(file())) { P.store(out, "Atenas Client 1.21.11"); } catch (Exception ignored) { }
+    }
 }
