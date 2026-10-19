@@ -48,6 +48,7 @@ public final class AtenasFabricClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback.EVENT.register((type, renderer, helper, ctx) -> {
             if (type == net.minecraft.entity.EntityType.PLAYER) helper.register(new com.atenas.fabric.cosmetics.CosmeticLayer(renderer));
         });
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("pets", com.atenas.fabric.cosmetics.PetRender::tick, c));
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("hudextras", com.atenas.fabric.hud.HudExtras::tick, c));
         ClientTickEvents.END_CLIENT_TICK.register(c -> { if (c.getOverlay() == null) safe("cosmeticsync", com.atenas.fabric.cosmetics.CosmeticSync::tick, c); });
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("friends", mc -> {

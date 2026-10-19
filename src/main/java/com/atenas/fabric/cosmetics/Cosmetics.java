@@ -95,7 +95,7 @@ public final class Cosmetics {
     public static final List<Item> HATS = new ArrayList<>();
     public static final List<Item> PETS = new ArrayList<>();
     private static void pet(String id, String name, int color) { PETS.add(new Item(id, name, color, false, 1, false, 0)); }
-    private static void w(String id, String name, int color, boolean glow, boolean mem) { Item i = new Item(id, name, color, glow, 1, false, 0); i.membrane = mem; WINGS.add(i); }
+    private static void w(String id, String name, int color, boolean glow, boolean mem) { Item i = new Item(id, name, color, false, 1, false, 0); i.membrane = mem; WINGS.add(i); /* el 1.8.9 no hace brillar ninguna ala */ }
     private static void h(String id, String name, int color, boolean glow) { HATS.add(new Item(id, name, color, glow, 1, false, 0)); }
     static {
         w("doradas", "Alas Doradas", 0xFFF5C542, false, false); w("oscuras", "Alas Oscuras", 0xFF8E2DE2, false, false);

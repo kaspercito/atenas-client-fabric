@@ -8,7 +8,11 @@ import com.atenas.fabric.gui.Ui;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.state.EntityRenderState;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -156,7 +160,7 @@ public final class CosmeticsScreen extends Screen {
         Ui.card(g, rx, ry, rw, rh, 0xFF090812, Ui.BORDER);
         if (client != null && client.player != null) {
             g.enableScissor(rx + 1, ry + 1, rx + rw - 1, ry + rh - 1);
-            try { InventoryScreen.drawEntity(g, rx + 1, ry + 1, rx + rw - 1, ry + rh - 24, Math.max(30, (rh - 24) / 3), 0.0625f, mx, my, client.player); } catch (Throwable ignored) { }
+            drawPlayer(g, rx, ry, rw, rh);
             g.disableScissor();
         } else {
             Ui.centered(g, textRenderer, "Entra a un mundo", rx + rw / 2, ry + rh / 2 - 8, Ui.TEXT);
@@ -171,6 +175,31 @@ public final class CosmeticsScreen extends Screen {
 
         button(g, "Animadas: " + (Cosmetics.animate ? "S\u00ed" : "No"), rx, py + ph - 48, rw, 18, false, in(mx, my, rx, py + ph - 48, rw, 18));
         button(g, "Listo", rx, py + ph - 26, rw, 18, true, in(mx, my, rx, py + ph - 26, rw, 18));
+    }
+
+
+    /** Estado de render del personaje de la vista previa: la capa de cosmeticos lo reconoce por identidad. */
+    public static volatile EntityRenderState previewState;
+
+    /** Jugador girando (60 grados por segundo, como el 1.8.9), escala 42, pies cerca del fondo y 10 px a la izquierda del centro. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void drawPlayer(DrawContext g, int rx, int ry, int rw, int rh) {
+        ClientPlayerEntity pl = client.player;
+        final int size = 42;
+        float spin = (System.currentTimeMillis() * 0.06f) % 360f;
+        int cx = rx + rw / 2 - 10, feet = ry + rh - 22;
+        int cy = feet - (int) (0.9f * size);
+        float ob = pl.bodyYaw, oy = pl.getYaw(), op = pl.getPitch(), olh = pl.lastHeadYaw, oh = pl.headYaw;
+        pl.bodyYaw = spin; pl.setYaw(spin); pl.setPitch(0f); pl.headYaw = spin; pl.lastHeadYaw = spin;
+        try {
+            EntityRenderer r = client.getEntityRenderDispatcher().getRenderer(pl);
+            EntityRenderState st = r.getAndUpdateRenderState(pl, 1.0f);
+            previewState = st;
+            Vector3f t = new Vector3f(0f, pl.getHeight() / 2f + 0.0625f, 0f);
+            g.addEntity(st, size, t, new Quaternionf().rotateZ((float) Math.PI), new Quaternionf(), cx - rw / 2, cy - rh / 2, cx + rw / 2, cy + rh / 2);
+        } finally {
+            pl.bodyYaw = ob; pl.setYaw(oy); pl.setPitch(op); pl.lastHeadYaw = olh; pl.headYaw = oh;
+        }
     }
 
     @Override

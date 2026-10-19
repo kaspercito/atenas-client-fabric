@@ -5,21 +5,29 @@ import java.util.Map;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.feature.FeatureRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
+import net.minecraft.client.texture.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.RotationAxis;
 
 /**
- * Capa de render propia: alas (pegadas al cuerpo) y sombreros (pegados a la cabeza). Se registra con
- * LivingEntityFeatureRendererRegistrationCallback solo para jugadores (ver AtenasFabricClient). Misma logica y mismas mallas que el mod 1.20.1.
+ * Capa de render propia: alas (pegadas al cuerpo), sombreros (pegados a la cabeza) y mascotas. Se registra con
+ * LivingEntityFeatureRendererRegistrationCallback solo para jugadores (ver AtenasFabricClient). Misma logica y mismas mallas que el 1.8.9.
+ *
+ * Correcciones respecto a la version anterior:
+ *  - overlay: antes (0, 0) = textura de "dano" (tinte rojo sobre todo); ahora OverlayTexture.DEFAULT_UV (sin tinte).
+ *  - alas con mezcla alfa (como el glBlend 770/771 del 1.8.9) en vez de "cutout" (las plumas semitransparentes salian recortadas/duras).
+ *  - los dos ultimos parametros de render() son el giro de la cabeza y el cabeceo, NO el balanceo de las piernas: el balanceo sale del limbAnimator.
+ *  - alas sin brillo propio (en el 1.8.9 ninguna ala brilla); sombreros emisivos con giro (flag SPIN) como en el 1.8.9.
  */
 public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, EntityModel<EntityRenderState>> {
     private static final int FULL = 0xF000F0;
@@ -37,48 +45,55 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         VertexConsumer vc; MatrixStack.Entry e; int light; float nx, ny = 1f, nz;
         @Override public void normal(float x, float y, float z) { nx = x; ny = y; nz = z; }
         @Override public void vertex(float x, float y, float z, float u, float v) {
-            vc.vertex(e, x, y, z).color(255, 255, 255, 255).texture(u, v).overlay(0).light(light).normal(e, nx, ny, nz);
+            vc.vertex(e, x, y, z).color(255, 255, 255, 255).texture(u, v).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(e, nx, ny, nz);
         }
     }
 
     private static Identifier tex(String folder, String id) { return Identifier.of(Cosmetics.NS, "textures/cosmetics/" + folder + "/" + id + ".png"); }
 
     @Override
-    public void render(MatrixStack ms, OrderedRenderCommandQueue queue, int light, EntityRenderState state, float limbAngle, float limbDistance) {
+    public void render(MatrixStack ms, OrderedRenderCommandQueue queue, int light, EntityRenderState state, float headYaw, float headPitch) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null) return;
-        AbstractClientPlayerEntity p = null;
-        double best = 1.0;
-        for (AbstractClientPlayerEntity c : mc.world.getPlayers()) {
-            double dx = c.getX() - state.x, dy = c.getY() - state.y, dz = c.getZ() - state.z;
-            double d = dx * dx + dy * dy + dz * dz;
-            if (d < best) { best = d; p = c; }
+        // vista previa del menu: el estado que creo CosmeticsScreen (tu personaje girando)
+        boolean preview = state == CosmeticsScreen.previewState && mc.player != null;
+        AbstractClientPlayerEntity p = preview ? mc.player : null;
+        if (p == null) {
+            double best = 1.0;
+            for (AbstractClientPlayerEntity c : mc.world.getPlayers()) {
+                double dx = c.getX() - state.x, dy = c.getY() - state.y, dz = c.getZ() - state.z;
+                double d = dx * dx + dy * dy + dz * dz;
+                if (d < best) { best = d; p = c; }
+            }
         }
         if (p == null || p.isInvisible()) return;
         if (!(getContextModel() instanceof BipedEntityModel<?> model)) return;
-        String hatId = CosmeticSync.partOf(p, "hat"), wingId = CosmeticSync.partOf(p, "wings");
+        String hatId = CosmeticSync.partOf(p, "hat"), wingId = CosmeticSync.partOf(p, "wings"), petId = CosmeticSync.partOf(p, "pet");
         double d2 = mc.player == null || p == mc.player ? 0.0 : p.squaredDistanceTo(mc.player);
-        float age = p.age + (mc.getRenderTickCounter() == null ? 0f : mc.getRenderTickCounter().getTickProgress(false));
+        if (d2 > Cosmetics.MAX_DIST_SQ) return;
+        float pt = mc.getRenderTickCounter() == null ? 0f : mc.getRenderTickCounter().getTickProgress(false);
+        float age = p.age + pt;
+        int lit = preview ? FULL : light; // vista previa a pleno brillo, como en el 1.8.9
+        float by = state instanceof LivingEntityRenderState ls ? ls.bodyYaw : p.getBodyYaw();
+        // balanceo de las piernas (limbSwing / limbSwingAmount del 1.8.9)
+        float limbSwing = p.limbAnimator.getPos(pt), limbAmount = p.limbAnimator.getSpeed(pt);
 
         if (wingId != null) {
             Cosmetics.Item item = Cosmetics.find("wings", wingId);
-            if (item != null) wings(ms, queue, light, p, item, model, d2, limbAngle, limbDistance);
+            if (item != null) wings(ms, queue, lit, p, item, model, d2, limbSwing, limbAmount, preview);
         }
-        String petId = CosmeticSync.partOf(p, "pet");
-        if (petId != null && d2 <= HatMesh.MAX_DIST_SQ) {
-            // vista previa del menu: pantalla de cosmeticos abierta, tu personaje y primera persona (el mundo no te dibuja)
-            boolean preview = p == mc.player && mc.currentScreen instanceof CosmeticsScreen && mc.options.getPerspective().isFirstPerson();
-            float by = state instanceof LivingEntityRenderState ls ? ls.bodyYaw : p.getBodyYaw();
-            PetRender.render(ms, queue, light, p.getId(), state.x, state.y, state.z, by, preview, age, petId);
+        if (petId != null) {
+            if (preview) PetRender.renderPreview(ms, queue, lit, petId, by);
+            else PetRender.render(ms, queue, lit, p.getName().getString(), state.x, state.y, state.z, by, pt);
         }
-        if (hatId != null && d2 <= HatMesh.MAX_DIST_SQ) {
+        if (hatId != null) {
             Cosmetics.Item item = Cosmetics.find("hat", hatId);
-            if (item != null) hat(ms, queue, light, item, model, age);
+            if (item != null) hat(ms, queue, lit, item, model, age);
         }
     }
 
     private void wings(MatrixStack ms, OrderedRenderCommandQueue queue, int light, AbstractClientPlayerEntity p, Cosmetics.Item item,
-                       BipedEntityModel<?> model, double d2, float limbSwing, float limbSwingAmount) {
+                       BipedEntityModel<?> model, double d2, float limbSwing, float limbSwingAmount, boolean preview) {
         int segs = WingMesh.segsFor(d2);
         boolean twoSided = WingMesh.twoSidedFor(d2);
         boolean airNow = !p.isOnGround() && !p.isTouchingWater() && !p.hasVehicle();
@@ -113,12 +128,13 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
 
         final float fOpen = open, fTime = time, fFlap = flap, fPhase = st.phase;
         final boolean fTwo = twoSided;
-        final int fLight = item.glow ? FULL : light;
+        final int fLight = light; // ninguna ala brilla por si sola (igual que el 1.8.9)
         final int fSegs = segs;
         final double fd2 = d2;
         ms.push();
         model.body.applyTransform(ms);
-        queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(tex("wings", item.id)), (e, vc) -> {
+        // el 1.8.9 dibuja las alas con mezcla alfa (770, 771): las plumas y membranas semitransparentes se mezclan, no se recortan
+        queue.submitCustom(ms, RenderLayers.entityTranslucent(tex("wings", item.id)), (e, vc) -> {
             sink.vc = vc; sink.e = e; sink.light = fLight;
             if (item.membrane) plane.emit(sink, fOpen, fTime, fFlap, fTwo, WingPlane.gridFor(fd2), 0.0625F);
             else mesh.emit(sink, fOpen, fPhase, fFlap, fSegs, fTwo, 0.0625F);
@@ -134,22 +150,22 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         ms.push();
         model.head.applyTransform(ms);
         if ("halo".equals(item.id)) ms.translate(0.0, Math.sin(age * 0.1f) * 0.02, 0.0);
+        // piezas normales (con luz)
         queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(t), (e, vc) -> {
             for (int g = 0; g < m.groups(); g++) if ((m.flags[g] & HatMesh.EMIT) == 0) m.emit(g, vc, e, light, 1f);
         });
-        boolean any = false;
-        for (int f : m.flags) if ((f & HatMesh.EMIT) != 0) any = true;
-        if (any) {
-            queue.submitCustom(ms, RenderLayers.eyes(t), (e, vc) -> {
-                for (int g = 0; g < m.groups(); g++) {
-                    int fl = m.flags[g];
-                    if ((fl & HatMesh.EMIT) == 0) continue;
-                    float al = 1f;
-                    if ((fl & HatMesh.PULSE) != 0) al = 0.62f + 0.38f * (float) Math.sin(age * 0.13f + g * 1.7f);
-                    if ((fl & HatMesh.SOFT) != 0) al *= 0.7f;
-                    m.emit(g, vc, e, FULL, al);
-                }
-            });
+        // piezas que brillan: aditivas, a pleno brillo; las del flag SPIN giran sobre Y (age * 1.6 grados)
+        for (int g = 0; g < m.groups(); g++) {
+            final int fl = m.flags[g], gi = g;
+            if ((fl & HatMesh.EMIT) == 0) continue;
+            float al = 1f;
+            if ((fl & HatMesh.PULSE) != 0) al = 0.62f + 0.38f * (float) Math.sin(age * 0.13f + g * 1.7f);
+            if ((fl & HatMesh.SOFT) != 0) al *= 0.7f;
+            final float fal = al;
+            ms.push();
+            if ((fl & HatMesh.SPIN) != 0) ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(age * 1.6f));
+            queue.submitCustom(ms, RenderLayers.eyes(t), (e, vc) -> m.emit(gi, vc, e, FULL, fal));
+            ms.pop();
         }
         ms.pop();
     }

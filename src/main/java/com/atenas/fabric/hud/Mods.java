@@ -107,6 +107,11 @@ public final class Mods {
         } catch (Exception ignored) { }
     }
 
+    /** True si el codigo GLFW es la tecla del menu (RShift por defecto, o la que el jugador haya puesto). */
+    public static boolean isMenuKey(int glfwKey) {
+        try { return menu != null && KeyBindingHelper.getBoundKeyOf(menu).getCode() == glfwKey; } catch (Throwable t) { return glfwKey == GLFW.GLFW_KEY_RIGHT_SHIFT; }
+    }
+
     private static boolean tabWas;
 
     /** Shift+Tab abre Amigos (como en 1.8.9): en el juego, en la pausa y en el menu principal. Se lee el teclado directo (Tab ya es la lista de jugadores). */
@@ -126,7 +131,7 @@ public final class Mods {
 
     public static void tick(MinecraftClient mc) {
         friendsHotkey(mc);
-        while (menu.wasPressed()) { if (mc.currentScreen == null) mc.setScreen(new ConfigScreen()); }
+        while (menu.wasPressed()) { if (mc.currentScreen == null) mc.setScreen(new ConfigScreen(null)); }
         if (mc.world == null || mc.player == null) {
             WaypointStore.setContext(null, 0);
             TeamSync.clear();

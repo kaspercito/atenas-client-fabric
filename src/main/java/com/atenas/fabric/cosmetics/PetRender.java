@@ -1,198 +1,199 @@
 package com.atenas.fabric.cosmetics;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.RenderLayers;
-import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.texture.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.World;
 
 /**
- * Mascotas cosmeticas (version del 1.20.1 con jerarquia de piezas y animacion: patas, cola, cabeza, orejas, alas y salto del conejo): el modelo sale de pets/models.json (piezas de cajas con UV), la mascota te sigue
- * caminando y mira hacia donde va. Solo existen en tu pantalla. Sin subirse al hombro (pendiente).
- * Se dibuja dentro de la CosmeticLayer del jugador, convirtiendo su posicion de mundo al espacio del modelo del jugador.
+ * Mascotas cosmeticas: port del PetRender del 1.8.9. Cada jugador con mascota (y a menos de {@link Cosmetics#MAX_DIST_SQ}) tiene un
+ * {@link PetBrain} que se mueve UNA vez por tick ({@link #tick}); el dibujo interpola y se hace dentro de la capa del jugador
+ * ({@link CosmeticLayer}), convirtiendo la posicion de mundo de la mascota al marco del modelo del jugador. Solo cliente.
  */
 public final class PetRender {
     private PetRender() {}
 
-    private static final class Piece { String name, parent, role = ""; float[] s = new float[3], o = new float[3], at = new float[3], uv = new float[2]; }
-    private static final class Kind { float scale = 1f, tailUp, tailCurl, earRest; boolean hop; List<Piece> pieces = new ArrayList<>(); }
-    private static final class Pet { double x, z, y; double hx, hz = -1; float walk; long last; boolean init; }
-
-    private static Map<String, String> kindOf;
-    private static final Map<String, Kind> KINDS = new HashMap<>();
-    private static float sheetW = 128, sheetH = 64;
-    private static boolean loaded;
-    private static final Map<Integer, Pet> PETS = new HashMap<>();
-
-    private static synchronized void load() {
-        if (loaded) return;
-        loaded = true;
-        kindOf = new HashMap<>();
-        try (InputStream in = PetRender.class.getResourceAsStream("/assets/" + Cosmetics.NS + "/pets/models.json")) {
-            JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            JsonArray sh = root.getAsJsonArray("sheet");
-            sheetW = sh.get(0).getAsFloat(); sheetH = sh.get(1).getAsFloat();
-            for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("pets").entrySet()) kindOf.put(e.getKey(), e.getValue().getAsString());
-            for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("kinds").entrySet()) {
-                JsonObject k = e.getValue().getAsJsonObject();
-                Kind kk = new Kind();
-                if (k.has("scale")) kk.scale = k.get("scale").getAsFloat();
-                if (k.has("tailUp")) kk.tailUp = k.get("tailUp").getAsFloat();
-                if (k.has("tailCurl")) kk.tailCurl = k.get("tailCurl").getAsFloat();
-                if (k.has("earRest")) kk.earRest = k.get("earRest").getAsFloat();
-                if (k.has("hop")) kk.hop = k.get("hop").getAsBoolean();
-                for (JsonElement pe : k.getAsJsonArray("pieces")) {
-                    JsonObject po = pe.getAsJsonObject();
-                    Piece p = new Piece();
-                    p.name = po.get("n").getAsString();
-                    p.parent = po.has("p") ? po.get("p").getAsString() : "";
-                    p.role = po.has("role") ? po.get("role").getAsString() : "";
-                    for (int i = 0; i < 3; i++) { p.s[i] = po.getAsJsonArray("s").get(i).getAsFloat(); p.o[i] = po.getAsJsonArray("o").get(i).getAsFloat(); p.at[i] = po.getAsJsonArray("at").get(i).getAsFloat(); }
-                    for (int i = 0; i < 2; i++) p.uv[i] = po.getAsJsonArray("uv").get(i).getAsFloat();
-                    kk.pieces.add(p);
-                }
-                KINDS.put(e.getKey(), kk);
-            }
-        } catch (Throwable t) { System.err.println("[AtenasClient] mascotas: " + t); }
+    private static final class Pet {
+        final PetBrain brain;
+        Cosmetics.Item item;
+        boolean seen;
+        String kind = "";
+        Pet(long seed) { brain = new PetBrain(seed); }
     }
 
-    private static final class Anim { float amp; }
-    private static final Map<Integer, Anim> ANIMS = new HashMap<>();
+    private static final PetBrain.Owner OWNER = new PetBrain.Owner();
+    private static final Map<String, Pet> PETS = new HashMap<>();
+    private static final Map<String, PetModel> MODELS = new HashMap<>();
+
+    /** El suelo para la mascota: la cara de arriba del bloque solido mas alto que este a "fromY" o mas abajo (hasta 8 bloques). */
+    private static final PetBrain.Ground GROUND = new PetBrain.Ground() {
+        @Override public double ground(double x, double z, double fromY) {
+            World w = MinecraftClient.getInstance().world;
+            if (w == null) return Double.NaN;
+            int bx = MathHelper.floor(x), bz = MathHelper.floor(z), top = MathHelper.floor(fromY);
+            for (int y = top; y >= top - 8 && y >= w.getBottomY(); y--) {
+                BlockPos pos = new BlockPos(bx, y, bz);
+                BlockState st = w.getBlockState(pos);
+                VoxelShape sh = st.getCollisionShape(w, pos);
+                if (!sh.isEmpty()) return y + sh.getMax(Direction.Axis.Y);
+            }
+            return Double.NaN;
+        }
+
+        @Override public double water(double x, double z, double y) {
+            World w = MinecraftClient.getInstance().world;
+            if (w == null) return Double.NaN;
+            int bx = MathHelper.floor(x), bz = MathHelper.floor(z), by = MathHelper.floor(y);
+            for (int dy = 0; dy >= -1; dy--) {
+                int yy = by + dy;
+                if (!w.getFluidState(new BlockPos(bx, yy, bz)).isIn(FluidTags.WATER)) continue;
+                for (int n = 0; n < 8; n++) {
+                    if (w.getFluidState(new BlockPos(bx, yy + 1, bz)).isIn(FluidTags.WATER)) yy++; else break;
+                }
+                return yy + 0.89;
+            }
+            return Double.NaN;
+        }
+    };
+
+    private static Identifier tex(String id) { return Identifier.of(Cosmetics.NS, "textures/cosmetics/pets/" + id + ".png"); }
+
+    private static PetModel modelOf(PetSpec.Kind kd) { return MODELS.computeIfAbsent(kd.name, k -> new PetModel(kd)); }
+
+    /** Un tick de cada cerebro. Se registra en ClientTickEvents.END_CLIENT_TICK (ver AtenasFabricClient). */
+    public static void tick(MinecraftClient mc) {
+        if (mc.world == null || mc.player == null) { PETS.clear(); return; }
+        if (mc.isPaused()) return; // un solo jugador con el menu de pausa abierto: el mundo esta congelado, la mascota tambien
+        for (Pet p : PETS.values()) p.seen = false;
+        for (AbstractClientPlayerEntity ep : mc.world.getPlayers()) {
+            String name = ep.getName().getString();
+            if (name == null || name.isEmpty()) continue;
+            String petId = CosmeticSync.partOf(ep, "pet");
+            Cosmetics.Item item = petId == null ? null : Cosmetics.find("pet", petId);
+            if (item == null) continue;
+            if (ep != mc.player && ep.squaredDistanceTo(mc.player) > Cosmetics.MAX_DIST_SQ) continue;
+            PetSpec.Kind kd = PetSpec.kindFor(item.id);
+            if (kd == null) continue;
+            Pet pet = PETS.get(name);
+            if (pet == null) { pet = new Pet(name.hashCode()); PETS.put(name, pet); }
+            if (!kd.name.equals(pet.kind)) { pet.kind = kd.name; pet.brain.configure(kd.flier, kd.avoidWater, kd.hop); }
+            pet.seen = true;
+            pet.item = item;
+            OWNER.x = ep.getX(); OWNER.y = ep.getY(); OWNER.z = ep.getZ();
+            OWNER.yaw = ep.getYaw(); OWNER.bodyYaw = ep.getBodyYaw(); OWNER.pitch = ep.getPitch();
+            OWNER.sneaking = ep.isSneaking(); OWNER.sprinting = ep.isSprinting();
+            String pose = ep.getPose().name();
+            OWNER.fallFlying = "GLIDING".equals(pose) || "FALL_FLYING".equals(pose);
+            OWNER.flying = ep.getAbilities().flying;
+            OWNER.swimming = ep.isSwimming();
+            OWNER.inWater = ep.isTouchingWater(); OWNER.riding = ep.hasVehicle(); OWNER.climbing = ep.isClimbing(); OWNER.onGround = ep.isOnGround();
+            pet.brain.tick(OWNER, GROUND);
+        }
+        // quien ya no esta (se fue, se quito la mascota o se alejo) pierde su mascota; al volver aparece junto a el
+        for (Iterator<Pet> it = PETS.values().iterator(); it.hasNext();) if (!it.next().seen) it.remove();
+    }
 
     /**
-     * Dibuja la mascota dentro de la capa del jugador (espacio del modelo: y hacia abajo, suelo a 1.5).
-     * Usa la posicion y el giro del RENDER STATE (no los de la entidad): en el menu de cosmeticos el estado lleva el giro de la vista previa
-     * y la entidad real ya lo tiene restaurado, por eso antes la mascota salia desplazada o fuera de la caja.
-     * preview = true: la mascota se queda fija junto al personaje, mirando al frente, con animacion en reposo.
+     * Dibuja la mascota de un jugador DENTRO de su capa (ms esta en el marco del modelo del jugador: y hacia abajo, origen 1.501 sobre los pies).
+     * Se deshace ese marco para volver al mundo y se coloca la mascota exactamente como en el 1.8.9
+     * (trasladar a su posicion, girar 180 - yaw, escalar (-s,-s,s), bajar 1.501).
+     * ex/ey/ez = posicion interpolada del jugador, bodyYawDeg = giro de su cuerpo en este cuadro.
      */
-    public static void render(MatrixStack ms, OrderedRenderCommandQueue queue, int light, int entityId, double ex, double ey, double ez,
-                              float bodyYawDeg, boolean preview, float age, String id) {
-        load();
-        String kn = kindOf == null ? null : kindOf.get(id);
-        Kind kind = kn == null ? null : KINDS.get(kn);
-        if (kind == null) return;
-        if (PETS.size() > 100) { PETS.clear(); ANIMS.clear(); }
-        Pet pet = PETS.computeIfAbsent(preview ? -1 : entityId, k -> new Pet());
-        Anim an = ANIMS.computeIfAbsent(preview ? -1 : entityId, k -> new Anim());
-        long now = System.nanoTime();
-        float dt = pet.init ? Math.min(0.1f, (now - pet.last) / 1.0e9f) * 20f : 0f;
-        pet.last = now;
-
-        double qx, qz, qy, yawDeg;
-        boolean moving = false;
-        if (preview) {
-            qx = -0.75; qz = -0.25; qy = 1.501; yawDeg = 20.0; // al lado, mirando al frente
-            pet.init = true;
-        } else {
-            double by = Math.toRadians(bodyYawDeg);
-            double tx = ex + (Math.sin(by) + Math.cos(by)) * 0.9, tz = ez + (Math.sin(by) - Math.cos(by)) * 0.9;
-            if (!pet.init || Math.hypot(pet.x - ex, pet.z - ez) > 14) { pet.x = tx; pet.z = tz; pet.y = ey; pet.hx = -Math.sin(by); pet.hz = Math.cos(by); pet.init = true; }
-            double dx = tx - pet.x, dz = tz - pet.z, dist = Math.hypot(dx, dz);
-            if (dist > 1.4) {
-                double step = Math.min(dist - 1.0, (dist > 4 ? 0.45 : 0.22) * dt);
-                pet.x += dx / dist * step; pet.z += dz / dist * step;
-                pet.hx = dx / dist; pet.hz = dz / dist;
-                moving = step > 0.001;
-            } else {
-                // en reposo mira hacia el jugador
-                double lx = ex - pet.x, lz = ez - pet.z, ll = Math.hypot(lx, lz);
-                if (ll > 0.01) { double k = Math.min(1.0, dt * 0.15); pet.hx += (lx / ll - pet.hx) * k; pet.hz += (lz / ll - pet.hz) * k; double hl = Math.hypot(pet.hx, pet.hz); if (hl > 1e-4) { pet.hx /= hl; pet.hz /= hl; } }
-            }
-            pet.y += (ey - pet.y) * Math.min(1f, dt * 0.3f);
-            double sy = pet.y - ey;
-            // mundo -> espacio del modelo del jugador (inverso de rotar (180 - yaw), escalar (-1,-1,1) y bajar 1.501)
-            double phi = Math.toRadians(180.0 - bodyYawDeg), c = Math.cos(phi), s = -Math.sin(phi);
-            double wx = pet.x - ex, wz = pet.z - ez;
-            qx = -(wx * c + wz * s); qz = -wx * s + wz * c; qy = -sy + 1.501;
-            double hlx = -(pet.hx * c + pet.hz * s), hlz = -pet.hx * s + pet.hz * c;
-            yawDeg = Math.toDegrees(Math.atan2(-hlx, -hlz));
-        }
-        if (moving) pet.walk += dt * 0.9f;
-        an.amp += ((moving ? 1f : 0f) - an.amp) * Math.min(1f, dt * 0.25f);
-        float amp = an.amp;
-        float bob = moving ? Math.abs((float) Math.sin(pet.walk)) * 0.035f : 0f;
-        Identifier tex = Identifier.of(Cosmetics.NS, "textures/cosmetics/pets/" + id + ".png");
-        final Kind k = kind;
-        final float t = age, walk = pet.walk;
-        final boolean hop = k.hop;
+    public static void render(MatrixStack ms, OrderedRenderCommandQueue queue, int light, String name, double ex, double ey, double ez, float bodyYawDeg, float pt) {
+        Pet pet = PETS.get(name);
+        if (pet == null || pet.item == null) return;
+        PetSpec.Kind kd = PetSpec.kindFor(pet.item.id);
+        if (kd == null) return;
+        PetBrain b = pet.brain;
+        PetModel model = modelOf(kd);
+        float sc = PetSpec.renderScale(kd, b, pt);
+        double dx = b.ix(pt) - ex, dy = b.iy(pt) - ey, dz = b.iz(pt) - ez;
         ms.push();
-        ms.translate(qx, qy - bob - (hop ? Math.abs((float) Math.sin(walk)) * 0.12f * amp : 0f), qz);
-        ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((float) yawDeg));
-        float sc = k.scale;
-        ms.scale(sc, sc, sc);
-        ms.translate(0.0, -1.5, 0.0); // el modelo tiene el suelo en y = 24/16: se escala desde el suelo, no desde el aire
-        queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(tex), (e, vc) -> {
-            Map<String, Matrix4f> mats = new HashMap<>();
-            for (Piece pc : k.pieces) {
-                Matrix4f par = pc.parent.isEmpty() ? null : mats.get(pc.parent);
-                Matrix4f m = par == null ? new Matrix4f() : new Matrix4f(par);
-                m.translate(pc.at[0] / 16f, pc.at[1] / 16f, pc.at[2] / 16f);
-                float rx = 0, ry = 0, rz = 0;
-                String n = pc.name;
-                boolean front = n.contains("FR") || n.contains("FL");
-                switch (pc.role) {
-                    case "leg1" -> {
-                        float ph = (n.startsWith("legFR") || n.startsWith("legRL") || n.startsWith("legR1") ? 0f : (float) Math.PI);
-                        if (hop) ph = front ? 0f : 0.5f;
-                        rx = (float) Math.sin(walk + ph) * 0.75f * amp * (hop ? 1.2f : 1f);
-                    }
-                    case "tail", "tailtip" -> {
-                        boolean first = pc.parent.equals("body");
-                        rx = first ? k.tailUp : k.tailCurl * 0.5f;
-                        ry = (float) Math.sin(t * (0.18f + 0.1f * amp) + pc.at[2] * 0.1f) * (0.18f + 0.15f * amp) * (first ? 1f : 0.7f);
-                    }
-                    case "head" -> { rx = (float) Math.sin(t * 0.07f) * 0.04f; ry = (float) Math.sin(t * 0.045f) * 0.12f; }
-                    case "ear", "horn" -> rz = (n.endsWith("L") ? 1f : -1f) * (k.earRest + (float) Math.max(0, Math.sin(t * 0.21f + (n.endsWith("L") ? 0f : 2f)) - 0.85f) * 0.8f);
-                    case "wing1" -> rz = (n.contains("L") ? 1f : -1f) * (0.04f + 0.18f * amp * (float) Math.sin(t * 0.9f));
-                    default -> { }
-                }
-                if (rx != 0) m.rotateX(rx);
-                if (ry != 0) m.rotateY(ry);
-                if (rz != 0) m.rotateZ(rz);
-                mats.put(pc.name, m);
-                cuboid(vc, e, light, m, pc.o[0], pc.o[1], pc.o[2], pc.s[0], pc.s[1], pc.s[2], pc.uv[0], pc.uv[1]);
-            }
-        });
+        ms.translate(0.0, 1.501, 0.0);
+        ms.scale(-1f, -1f, 1f);
+        ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-(180f - bodyYawDeg)));   // aqui ya estamos en el mundo, en la posicion del jugador
+        ms.translate(dx, dy, dz);
+        ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180f - b.iyaw(pt)));
+        draw(ms, queue, light, pet.item.id, kd, model, b, sc, pt);
         ms.pop();
     }
 
-    private static final Vector3f TP = new Vector3f(), TN = new Vector3f();
-
-    private static void quad(VertexConsumer vc, MatrixStack.Entry e, int light, Matrix4f m, float nx, float ny, float nz, float[] a, float[] b, float[] c, float[] d,
-                             float u0, float v0, float u1, float v1) {
-        float[][] p = {a, b, c, d};
-        float[][] uv = {{u0, v1}, {u1, v1}, {u1, v0}, {u0, v0}};
-        m.transformDirection(nx, ny, nz, TN);
-        for (int i = 0; i < 4; i++) {
-            m.transformPosition(p[i][0] / 16f, p[i][1] / 16f, p[i][2] / 16f, TP);
-            vc.vertex(e, TP.x, TP.y, TP.z).color(255, 255, 255, 255).texture(uv[i][0] / sheetW, uv[i][1] / sheetH).overlay(0).light(light).normal(e, TN.x, TN.y, TN.z);
+    /** Parte comun: inclinacion en el aire, hombrera, escala y dibujo. La matriz ya esta en el marco "mundo" de la mascota (pies en el origen). */
+    private static void draw(MatrixStack ms, OrderedRenderCommandQueue queue, int light, String id, PetSpec.Kind kd, PetModel model, PetBrain b, float sc, float pt) {
+        float pitch = b.ipitch(pt), roll = b.iroll(pt);
+        if (Math.abs(pitch) > 0.001f || Math.abs(roll) > 0.001f) {   // inclinada en el aire
+            float cy = (kd.legH + kd.bodyH / 2f) / 16f * sc;
+            ms.translate(0f, cy, 0f);
+            ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float) Math.toDegrees(roll)));
+            ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees((float) -Math.toDegrees(pitch)));
+            ms.translate(0f, -cy, 0f);
         }
+        float perch = b.iperch(pt);
+        if (perch > 0.5f) {   // hombrera bajo las patas
+            float padS = Math.min(sc * 1.6f, 0.9f) * Math.min(1f, (perch - 0.5f) * 2f);
+            ms.push();
+            ms.scale(-padS, -padS, padS);
+            queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(Identifier.ofVanilla("textures/block/brown_wool.png")), (e, vc) -> PetModel.emitPad(vc, e, light));
+            ms.pop();
+        }
+        ms.scale(-sc, -sc, sc);
+        ms.translate(0f, -1.501f, 0f); // en el modelo los pies estan en y = 24 (1.5 bloques)
+        final Identifier t = tex(id);
+        queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(t), (e, vc) -> model.emit(b, pt, vc, e, light, 1f));
     }
 
-    private static void cuboid(VertexConsumer vc, MatrixStack.Entry e, int light, Matrix4f m, float x, float y, float z, float w, float h, float d, float u, float v) {
-        float x2 = x + w, y2 = y + h, z2 = z + d;
-        // frente (z minimo), atras, izquierda, derecha, arriba (y minimo), abajo
-        quad(vc, e, light, m, 0, 0, -1, new float[] {x2, y2, z}, new float[] {x, y2, z}, new float[] {x, y, z}, new float[] {x2, y, z}, u + d, v + d, u + d + w, v + d + h);
-        quad(vc, e, light, m, 0, 0, 1, new float[] {x, y2, z2}, new float[] {x2, y2, z2}, new float[] {x2, y, z2}, new float[] {x, y, z2}, u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h);
-        quad(vc, e, light, m, -1, 0, 0, new float[] {x, y2, z}, new float[] {x, y2, z2}, new float[] {x, y, z2}, new float[] {x, y, z}, u + d + w, v + d, u + 2 * d + w, v + d + h);
-        quad(vc, e, light, m, 1, 0, 0, new float[] {x2, y2, z2}, new float[] {x2, y2, z}, new float[] {x2, y, z}, new float[] {x2, y, z2}, u, v + d, u + d, v + d + h);
-        quad(vc, e, light, m, 0, -1, 0, new float[] {x2, y, z2}, new float[] {x2, y, z}, new float[] {x, y, z}, new float[] {x, y, z2}, u + d, v, u + d + w, v + d);
-        quad(vc, e, light, m, 0, 1, 0, new float[] {x2, y2, z}, new float[] {x2, y2, z2}, new float[] {x, y2, z2}, new float[] {x, y2, z}, u + d + w, v, u + d + 2 * w, v + d);
+    // ------------------------------------------------------------------ vista previa del menu
+
+    private static PetBrain previewBrain;
+    private static String previewKey = "";
+    private static long previewLast;
+    private static final PetBrain.Ground FLAT = new PetBrain.Ground() {
+        @Override public double ground(double x, double z, double fromY) { return 0.0; }
+    };
+
+    /**
+     * Mascota elegida en la vista previa del menu, a un lado del jugador (igual que renderPreview del 1.8.9): se queda quieta, mirando a la
+     * camara, y hace sus gestos de reposo. ms esta en el marco del modelo del jugador (que gira): se deshace el giro para que la mascota no gire.
+     */
+    public static void renderPreview(MatrixStack ms, OrderedRenderCommandQueue queue, int light, String id, float bodyYawDeg) {
+        PetSpec.Kind kd = PetSpec.kindFor(id);
+        if (kd == null) return;
+        if (previewBrain == null || !previewKey.equals(id)) {
+            previewBrain = new PetBrain(id.hashCode());
+            previewBrain.configure(kd.flier, kd.avoidWater, kd.hop);
+            previewBrain.teleport(0.0, 0.0, 0.0, 0f);
+            previewKey = id;
+            previewLast = System.currentTimeMillis();
+        }
+        long now = System.currentTimeMillis();
+        int ticks = (int) Math.min(5L, (now - previewLast) / 50L);
+        if (ticks > 0) previewLast += ticks * 50L;
+        for (int i = 0; i < ticks; i++) previewBrain.tick(0.0, 0.0, 0.0, 0f, false, FLAT);
+        float pt = Math.min(1f, (now - previewLast) / 50f);
+        PetModel model = modelOf(kd);
+        float sc = PetSpec.renderScale(kd, previewBrain, pt);
+        ms.push();
+        ms.translate(0.0, 1.501, 0.0);
+        ms.scale(-1f, -1f, 1f);
+        ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-(180f - bodyYawDeg)));   // sin el giro del jugador
+        // 1.8.9: a +0.95 en su marco de GUI (derecha de la pantalla); aqui "frente a la camara" es el giro 180, por eso el lado es -x
+        ms.translate(-0.95, kd.flier ? 0.55 + Math.sin(now * 0.004) * 0.06 : 0.0, 0.0);
+        draw(ms, queue, light, id, kd, model, previewBrain, sc, pt);
+        ms.pop();
     }
 }
