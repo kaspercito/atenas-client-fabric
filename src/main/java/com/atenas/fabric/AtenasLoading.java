@@ -85,6 +85,13 @@ public final class AtenasLoading extends Overlay {
         mc.setScreen(new TitleScreen());
     }
 
+    /** Desde 1.21.9 el overlay original avanza en tick() (termina la recarga, abre el menu y se quita): hay que reenviarlo o se queda pegado. */
+    @Override
+    public void tick() { try { orig.tick(); } catch (Throwable t) { if (!failed) { failed = true; System.out.println("[Atenas] carga: tick del original fallo: " + t); } } }
+
+    @Override
+    public boolean pausesGame() { return orig.pausesGame(); }
+
     @Override
     public void render(DrawContext g, int mx, int my, float pt) {
         if (failed) { orig.render(g, mx, my, pt); return; }
@@ -99,7 +106,7 @@ public final class AtenasLoading extends Overlay {
                     lastSec = sec;
                     System.out.println("[Atenas] carga: +" + sec + "s pantalla=" + (mc.currentScreen == null ? "null" : mc.currentScreen.getClass().getName()) + " overlay=" + (mc.getOverlay() == null ? "null" : mc.getOverlay().getClass().getSimpleName()));
                 }
-                if (f > 1.2f) { // nuestra animacion ya termino: se quita el overlay sin esperar al original (que a veces no se va solo)
+                if (f > 1.0f) { // nuestra animacion ya termino: se quita el overlay sin esperar al original (que a veces no se va solo)
                     System.out.println("[Atenas] carga: fin de la animacion, se quita el overlay (pantalla=" + (mc.currentScreen == null ? "null" : mc.currentScreen.getClass().getName()) + ")");
                     mc.setOverlay(null);
                     return;
@@ -109,7 +116,6 @@ public final class AtenasLoading extends Overlay {
             shown += (target - shown) * 0.12f;
             if (shown > target) shown = target;
             float alpha = 1f;
-            if (f >= 0.6f) alpha = 1f - MathHelper.clamp((f - 0.6f) / 0.4f, 0f, 1f);
             if (alpha > 0.003f) draw(g, alpha, (now - t0) / 1000f);
         } catch (Throwable t) {
             failed = true;

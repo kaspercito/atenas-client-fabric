@@ -35,6 +35,7 @@ public final class AtenasTitleScreen extends Screen {
 
     @Override
     protected void init() {
+        System.out.println("[Atenas] menu principal: init " + width + "x" + height);
         int w = 200, h = 20, x = width / 2 - w / 2, y = height / 2 - 10, gap = 24;
         String server = prop("atenas.server");
         if (!server.isEmpty()) {

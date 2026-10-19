@@ -53,5 +53,5 @@ Repo esperado por el launcher: `kaspercito/atenas-client-fabric` (cambialo en `l
 - Nunca se compilo aqui: si Gradle protesta por un nombre de Yarn, mandame el error.
 
 ## Arreglo: pantalla negra al arrancar
-- El overlay de carga original no se quitaba solo y el juego quedaba en una pantalla de mensaje vacia (class_424 = MessageScreen). Ahora `AtenasLoading` quita el overlay al terminar su animacion y `AtenasLoading.guard` abre el menu principal si tras la carga no hay menu.
+- CAUSA REAL: desde 1.21.9 `Overlay.tick()` es el que termina la carga y abre el menu; `AtenasLoading` no lo reenviaba y el juego se quedaba en una MessageScreen (class_424) vacia. Ahora reenvia `tick()` y `pausesGame()` al overlay original. Ademas Ahora `AtenasLoading` quita el overlay al terminar su animacion y `AtenasLoading.guard` abre el menu principal si tras la carga no hay menu.
 - Notas de version: el workflow usa `RELEASE_NOTES.md` (o los mensajes de commit, sin duplicados) en vez de `generate_release_notes`, asi no aparece "**Full Changelog**: ...". Edita `RELEASE_NOTES.md` antes de cada tag.

@@ -1,3 +1,3 @@
-- Arreglado: el juego ya no se queda en pantalla negra despues de la carga; si algo falla abre el menu principal solo.
-- La pantalla de carga de Atenas termina sola y deja paso al menu.
-- Las novedades del launcher se muestran limpias, sin el texto "Full Changelog".
+- Arreglado de raiz el arranque en negro: desde Minecraft 1.21.9 la pantalla de carga avanza en tick() y la de Atenas no se lo pasaba, asi que el juego nunca terminaba de cargar.
+- La pantalla de carga de Atenas termina sola y abre el menu principal.
+- Las novedades se muestran limpias, sin el texto "Full Changelog".
