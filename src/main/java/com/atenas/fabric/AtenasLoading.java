@@ -7,7 +7,10 @@ import java.util.Random;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.MessageScreen;
 import net.minecraft.client.gui.screen.Overlay;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.SplashOverlay;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
@@ -62,6 +65,26 @@ public final class AtenasLoading extends Overlay {
         } catch (Throwable t) { handled = true; System.out.println("[Atenas] pantalla de carga: fallo al instalar: " + t); t.printStackTrace(); }
     }
 
+    private static long goneAt = -1;
+    private static boolean guardDone;
+
+    /**
+     * Red de seguridad del arranque (se llama cada tick): si el overlay de carga ya se fue y el juego se quedo en nada o en una pantalla de mensaje
+     * vacia (se ve negro, sin botones), abre el menu principal. Solo actua durante el arranque, antes de que haya menu, mundo o conexion.
+     */
+    public static void guard(MinecraftClient mc) {
+        if (guardDone || mc.getOverlay() != null) return;
+        if (mc.world != null || mc.isIntegratedServerRunning() || mc.getNetworkHandler() != null) { guardDone = true; return; }
+        Screen s = mc.currentScreen;
+        if (s != null && !(s instanceof MessageScreen)) { guardDone = true; return; } // ya hay menu u otra pantalla real
+        long now = System.currentTimeMillis();
+        if (goneAt < 0) { goneAt = now; return; }
+        if (now - goneAt < 800L) return;
+        guardDone = true;
+        System.out.println("[Atenas] arranque: sin menu tras quitar la carga (pantalla=" + (s == null ? "null" : s.getClass().getName()) + "), se abre el menu principal");
+        mc.setScreen(new TitleScreen());
+    }
+
     @Override
     public void render(DrawContext g, int mx, int my, float pt) {
         if (failed) { orig.render(g, mx, my, pt); return; }
@@ -76,8 +99,8 @@ public final class AtenasLoading extends Overlay {
                     lastSec = sec;
                     System.out.println("[Atenas] carga: +" + sec + "s pantalla=" + (mc.currentScreen == null ? "null" : mc.currentScreen.getClass().getName()) + " overlay=" + (mc.getOverlay() == null ? "null" : mc.getOverlay().getClass().getSimpleName()));
                 }
-                if (f > 4f) { // vigilante: el overlay original no se quito solo, se quita a la fuerza
-                    System.out.println("[Atenas] carga: el overlay original no se quito en 4 s, se quita a la fuerza");
+                if (f > 1.2f) { // nuestra animacion ya termino: se quita el overlay sin esperar al original (que a veces no se va solo)
+                    System.out.println("[Atenas] carga: fin de la animacion, se quita el overlay (pantalla=" + (mc.currentScreen == null ? "null" : mc.currentScreen.getClass().getName()) + ")");
                     mc.setOverlay(null);
                     return;
                 }

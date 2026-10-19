@@ -41,6 +41,7 @@ public final class AtenasFabricClient implements ClientModInitializer {
 
         Mods.init();
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("loading", AtenasLoading::tryInstall, c));
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("startguard", AtenasLoading::guard, c));
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("mods", Mods::tick, c));
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("extras", com.atenas.fabric.hud.Extras::tick, c));
         com.atenas.fabric.hud.Extras.register();

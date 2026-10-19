@@ -1,0 +1,3 @@
+- Arreglado: el juego ya no se queda en pantalla negra despues de la carga; si algo falla abre el menu principal solo.
+- La pantalla de carga de Atenas termina sola y deja paso al menu.
+- Las novedades del launcher se muestran limpias, sin el texto "Full Changelog".

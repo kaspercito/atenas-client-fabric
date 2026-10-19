@@ -51,3 +51,7 @@ Repo esperado por el launcher: `kaspercito/atenas-client-fabric` (cambialo en `l
 - **TAB/scoreboard sin fondo, Combo, Reach y Mira propia** (`hud/Extras.java`), activables con Right Shift.
 - **v0.3.1**: Resalte de bloque (`hud/BlockOverlay.java`, proyectado en pantalla, sin tocar el render del mundo), TAB propio sin fondo ni celdas (`hud/TabList.java`), mascotas simplificadas (`cosmetics/PetRender.java`: te siguen, sin animacion de patas) y menu principal de Atenas (`AtenasTitleScreen.java`, boton estrella al servidor del pack).
 - Nunca se compilo aqui: si Gradle protesta por un nombre de Yarn, mandame el error.
+
+## Arreglo: pantalla negra al arrancar
+- El overlay de carga original no se quitaba solo y el juego quedaba en una pantalla de mensaje vacia (class_424 = MessageScreen). Ahora `AtenasLoading` quita el overlay al terminar su animacion y `AtenasLoading.guard` abre el menu principal si tras la carga no hay menu.
+- Notas de version: el workflow usa `RELEASE_NOTES.md` (o los mensajes de commit, sin duplicados) en vez de `generate_release_notes`, asi no aparece "**Full Changelog**: ...". Edita `RELEASE_NOTES.md` antes de cada tag.

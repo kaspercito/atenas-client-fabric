@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
       - uses: gradle/actions/setup-gradle@v4
@@ -22,9 +23,22 @@ jobs:
           ls build/libs
       - uses: actions/upload-artifact@v4
         with: { name: jar, path: 'build/libs/AtenasClientFabric-*[0-9].jar' }
+      - name: Notas de la version (texto limpio, sin Full Changelog)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [ -s RELEASE_NOTES.md ]; then
+            cp RELEASE_NOTES.md notas.txt
+          else
+            PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+            if [ -n "$PREV" ]; then RANGE="$PREV..${GITHUB_REF_NAME}"; else RANGE="${GITHUB_REF_NAME}"; fi
+            git log $RANGE --no-merges --pretty='- %s' | awk '!seen[$0]++' | head -12 > notas.txt
+          fi
+          [ -s notas.txt ] || echo "- Mejoras y correcciones" > notas.txt
+          cat notas.txt
       - name: Publicar release (solo con tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: build/libs/AtenasClientFabric-*[0-9].jar
-          generate_release_notes: true
+          body_path: notas.txt
+          generate_release_notes: false
