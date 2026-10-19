@@ -40,3 +40,14 @@ git init && git add . && git commit -m "Atenas Client 1.21.11"
 git tag v0.1.0 && git push origin main v0.1.0
 ```
 Repo esperado por el launcher: `kaspercito/atenas-client-fabric` (cambialo en `launcher.config.json` si usas otro nombre).
+
+
+## v0.3.0 - cambios
+- **Crash arreglado** (`Mixin transformation of class_742 failed`): PlayerCapeMixin usa dos injects (Yarn + intermediary `method_52814`) con `require = 0`; si no encuentra el metodo se salta y el juego arranca. `defaultRequire` = 0 y refmap declarado.
+- **Pantalla de carga de Atenas** (`AtenasLoading.java`), la del mod 1.20.1.
+- **Alas y sombreros** (`cosmetics/CosmeticLayer.java` + mallas del 1.8.9/1.20.1), sincronizados por el servicio (campos `wings` y `hat`).
+- **Menu de cosmeticos** con pestanas y vista previa con tu personaje.
+- **Logo de Atenas** en el TAB (glifo en `assets/minecraft/font/default.json`) y en el nametag (`NametagMixin`).
+- **TAB/scoreboard sin fondo, Combo, Reach y Mira propia** (`hud/Extras.java`), activables con Right Shift.
+- **v0.3.1**: Resalte de bloque (`hud/BlockOverlay.java`, proyectado en pantalla, sin tocar el render del mundo), TAB propio sin fondo ni celdas (`hud/TabList.java`), mascotas simplificadas (`cosmetics/PetRender.java`: te siguen, sin animacion de patas) y menu principal de Atenas (`AtenasTitleScreen.java`, boton estrella al servidor del pack).
+- Nunca se compilo aqui: si Gradle protesta por un nombre de Yarn, mandame el error.

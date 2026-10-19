@@ -58,6 +58,7 @@ public final class Hud {
         for (String s : left) { ctx.drawText(mc.textRenderer, s, 4, y, white, true); y += 10; }
 
         HudExtras.draw(mc, ctx);
+        BlockOverlay.draw(mc, ctx, tick.getTickProgress(false));
 
         // ---- waypoints y companeros cercanos (arriba al centro) ----
         int cx = mc.getWindow().getScaledWidth() / 2;

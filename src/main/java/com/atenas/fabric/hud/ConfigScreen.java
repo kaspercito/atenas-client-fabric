@@ -33,6 +33,13 @@ public final class ConfigScreen extends Screen {
         ITEMS.put("speed", new Object[] {"Velocidad", false});
         ITEMS.put("memory", new Object[] {"Memoria", false});
         ITEMS.put("clock", new Object[] {"Reloj real", false});
+        ITEMS.put("combo", new Object[] {"Combo", true});
+        ITEMS.put("reach", new Object[] {"Alcance (Reach)", true});
+        ITEMS.put("crosshair", new Object[] {"Mira propia", true});
+        ITEMS.put("nobg", new Object[] {"TAB/Score sin fondo", true});
+        ITEMS.put("tablogo", new Object[] {"Logo en TAB/nametag", true});
+        ITEMS.put("blockoverlay", new Object[] {"Resalte de bloque", true});
+        ITEMS.put("atenasmenu", new Object[] {"Men\u00fa Atenas", true});
         ITEMS.put("fullbright", new Object[] {"Fullbright", false});
     }
 

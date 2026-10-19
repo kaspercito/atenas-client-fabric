@@ -32,6 +32,8 @@ public final class Cosmetics {
         public final boolean glow, custom;
         /** Privado y tu nick no esta en su lista: no sale en tu menu. */
         public boolean locked;
+        public boolean membrane;
+        public float openMul = 1f;
         Item(String id, String name, int color, boolean glow, int frames, boolean custom, int ver) {
             this.id = id; this.name = name; this.color = color; this.glow = glow; this.frames = Math.max(1, frames); this.custom = custom; this.ver = ver;
         }
@@ -86,6 +88,56 @@ public final class Cosmetics {
         b("cristal", "Cristal Prisma", 0xFF8FE9FF, true, 12);
         b("portal", "Portal M\u00edstico", 0xFFB04DFF, true, 12);
         b("dragon", "Drag\u00f3n", 0xFFD6202A, true, 12);        CAPES.addAll(BUILTIN);
+    }
+
+
+    public static final List<Item> WINGS = new ArrayList<>();
+    public static final List<Item> HATS = new ArrayList<>();
+    public static final List<Item> PETS = new ArrayList<>();
+    private static void pet(String id, String name, int color) { PETS.add(new Item(id, name, color, false, 1, false, 0)); }
+    private static void w(String id, String name, int color, boolean glow, boolean mem) { Item i = new Item(id, name, color, glow, 1, false, 0); i.membrane = mem; WINGS.add(i); }
+    private static void h(String id, String name, int color, boolean glow) { HATS.add(new Item(id, name, color, glow, 1, false, 0)); }
+    static {
+        w("doradas", "Alas Doradas", 0xFFF5C542, false, false); w("oscuras", "Alas Oscuras", 0xFF8E2DE2, false, false);
+        w("angel", "Alas de \u00c1ngel", 0xFFEAF6FF, true, false); w("atenas", "Alas Atenas", 0xFF8B5CF6, false, false);
+        w("fuego", "Alas de Fuego", 0xFFFF6A00, true, false); w("hielo", "Alas de Hielo", 0xFF9ADCFF, false, false);
+        w("neon", "Alas de Ne\u00f3n", 0xFF22D3EE, true, false); w("esmeralda", "Alas Esmeralda", 0xFF2ECC71, false, false);
+        w("ambar", "Alas \u00c1mbar", 0xFFFF7814, true, false); w("sakura", "Alas Sakura", 0xFFFFAACD, false, false);
+        w("aurora", "Alas Aurora", 0xFF28E6AA, true, false); w("lunar", "Alas Lunares", 0xFF7896E6, false, false);
+        w("demonio", "Alas de Demonio", 0xFFC0182A, false, false);
+        w("murcielago", "Alas de Murci\u00e9lago", 0xFF7860A8, false, true); w("vampiro", "Alas de Vampiro", 0xFFAA1E34, false, true);
+        w("dragon", "Alas de Drag\u00f3n", 0xFFFF8C28, false, true); w("abismo", "Alas del Abismo", 0xFF14AABE, true, true);
+        w("fantasma", "Alas Fantasma", 0xFFEBFAFF, false, true); w("jade", "Alas de Jade", 0xFF5AD796, false, true);
+        w("solar", "Alas Solares", 0xFFFFE06E, true, true); w("ceniza", "Alas de Ceniza", 0xFF78767E, false, true);
+        w("cristal", "Alas de Cristal", 0xFFC8F5FF, false, true); w("nebulosa", "Alas Nebulosa", 0xFF9646DC, false, true);
+        w("mariposa", "Alas de Mariposa", 0xFFFF9A1E, false, true); w("hada", "Alas de Hada", 0xFFFFB6E6, true, true);
+        w("fenix", "Alas de F\u00e9nix", 0xFFFF7A14, true, true); w("tormenta", "Alas de Tormenta", 0xFF5078E6, true, true);
+        w("cibernetico", "Alas Cibern\u00e9ticas", 0xFF00DCFF, true, true); w("esqueleto", "Alas de Esqueleto", 0xFFDDD6C4, false, true);
+        pet("perro", "Perro", 0xFFCD9654); pet("husky", "Husky", 0xFF68707E); pet("dalmata", "D\u00e1lmata", 0xFFF4F4F6); pet("gato", "Gato", 0xFFE28E3E);
+        pet("gatonegro", "Gato negro", 0xFF24242E); pet("zorro", "Zorro", 0xFFE87028); pet("conejo", "Conejo", 0xFFCEBCA8); pet("panda", "Panda", 0xFFF4F4F2);
+        pet("loro", "Loro", 0xFFD82626); pet("buho", "B\u00faho", 0xFF8A6848); pet("dragoncito", "Dragoncito", 0xFF42A86C);
+        h("halo", "Halo", 0xFFFFE680, true); h("corona", "Corona", 0xFFF5C542, false); h("galera", "Galera", 0xFF3A3A4E, false);
+        h("gato", "Orejas de Gato", 0xFF2A2A34, false); h("cuernos", "Cuernos", 0xFFC0182A, false); h("mago", "Sombrero de Mago", 0xFF5B2FA8, false);
+        h("auriculares", "Auriculares", 0xFF28283A, false); h("conejo", "Orejas de Conejo", 0xFFF2F2F7, false); h("gorra", "Gorra", 0xFF2447B8, false);
+        h("pirata", "Sombrero Pirata", 0xFF17171D, false); h("vikingo", "Casco Vikingo", 0xFFA9B0BF, false); h("laurel", "Corona de Laurel", 0xFFE8B84A, false);
+    }
+
+    private static final java.util.Map<String, String> SEL = new java.util.concurrent.ConcurrentHashMap<>();
+    public static List<Item> listOf(String type) { return "wings".equals(type) ? WINGS : "hat".equals(type) ? HATS : "pet".equals(type) ? PETS : CAPES; }
+    public static Item find(String type, String id) { if (id == null) return null; for (Item i : listOf(type)) if (i.id.equals(id)) return i; return null; }
+    public static String selectedId(String type) { ensureLoaded(); if ("cape".equals(type)) return selected; String v = SEL.get(type); return v; }
+    public static void select(String type, String id) {
+        ensureLoaded();
+        if ("cape".equals(type)) { select(id); return; }
+        if (id == null) SEL.remove(type); else SEL.put(type, id);
+        save(); CosmeticSync.markDirty();
+    }
+    static void applyRemote(String type, String id) {
+        ensureLoaded();
+        if ("cape".equals(type)) { applyRemote(id); return; }
+        String v = "none".equals(id) || id == null || id.isEmpty() ? null : id;
+        if (v == null) SEL.remove(type); else if (find(type, v) != null) SEL.put(type, v);
+        save();
     }
 
     public static List<Item> capes() { return CAPES; }
@@ -148,6 +200,7 @@ public final class Cosmetics {
                     String s = o.get("cape").getAsString();
                     selected = s.isEmpty() || "none".equals(s) ? null : s;
                 }
+                for (String t : new String[] {"wings", "hat", "pet"}) if (o.has(t) && !o.get(t).isJsonNull() && !"none".equals(o.get(t).getAsString())) SEL.put(t, o.get(t).getAsString());
             }
         } catch (Exception ignored) { }
     }
@@ -156,6 +209,7 @@ public final class Cosmetics {
         try {
             JsonObject o = new JsonObject();
             o.addProperty("cape", selected == null ? "none" : selected);
+            for (String t : new String[] {"wings", "hat", "pet"}) o.addProperty(t, SEL.containsKey(t) ? SEL.get(t) : "none");
             Files.writeString(file().toPath(), o.toString(), StandardCharsets.UTF_8);
         } catch (Exception ignored) { }
     }

@@ -25,14 +25,20 @@ import net.minecraft.text.Text;
  * (mismo archivo <.minecraft>/atenas/waypoints.json, mismo formato y mismas claves de mundo). Los demas modulos se portan encima.
  */
 public final class AtenasFabricClient implements ClientModInitializer {
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.3.0";
 
     @Override
     public void onInitializeClient() {
         System.out.println("[AtenasClient] 1.21.11 listo. Waypoints en " + SharedDir.dir());
 
         Mods.init();
+        ClientTickEvents.END_CLIENT_TICK.register(AtenasLoading::tryInstall);
         ClientTickEvents.END_CLIENT_TICK.register(Mods::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(com.atenas.fabric.hud.Extras::tick);
+        com.atenas.fabric.hud.Extras.register();
+        net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback.EVENT.register((type, renderer, helper, ctx) -> {
+            if (type == net.minecraft.entity.EntityType.PLAYER) helper.register(new com.atenas.fabric.cosmetics.CosmeticLayer(renderer));
+        });
         ClientTickEvents.END_CLIENT_TICK.register(com.atenas.fabric.hud.HudExtras::tick);
         ClientTickEvents.END_CLIENT_TICK.register(com.atenas.fabric.cosmetics.CosmeticSync::tick);
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.of("atenasclientfabric", "hud"), Hud::render);

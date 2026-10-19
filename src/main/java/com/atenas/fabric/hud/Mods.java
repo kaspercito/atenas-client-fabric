@@ -137,7 +137,7 @@ public final class Mods {
 
     public static List<String> toggleNames() {
         List<String> l = new ArrayList<>();
-        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright"}) l.add(s);
+        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu"}) l.add(s);
         return l;
     }
 }

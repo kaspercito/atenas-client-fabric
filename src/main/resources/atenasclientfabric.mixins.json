@@ -3,6 +3,7 @@
   "minVersion": "0.8",
   "package": "com.atenas.fabric.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["PlayerCapeMixin"],
-  "injectors": { "defaultRequire": 1 }
+  "refmap": "atenasclientfabric.refmap.json",
+  "client": ["PlayerCapeMixin", "NametagMixin"],
+  "injectors": { "defaultRequire": 0 }
 }

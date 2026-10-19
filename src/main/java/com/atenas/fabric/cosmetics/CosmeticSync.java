@@ -33,7 +33,31 @@ import net.minecraft.client.network.AbstractClientPlayerEntity;
 public final class CosmeticSync {
     private CosmeticSync() {}
 
+    /** Logo (glifo de la fuente por defecto, ver assets/minecraft/font/default.json). */
+    public static final String LOGO = "\ue0a7";
+    /** nick -> {cape, wings, hat}; presente = el servicio lo conoce (usa el cliente/mod). */
+    private static final Map<String, String[]> USERS = new ConcurrentHashMap<>();
     private static final Map<String, String> REMOTE = new ConcurrentHashMap<>();
+
+    public static boolean isUser(AbstractClientPlayerEntity p) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player != null && p == mc.player) return true;
+        return USERS.containsKey(p.getName().getString().toLowerCase(Locale.ROOT));
+    }
+
+    public static boolean isUserName(String n) { return n != null && USERS.containsKey(n.toLowerCase(Locale.ROOT)); }
+
+    /** Id de alas / sombrero de este jugador (null = ninguno). */
+    public static String partOf(AbstractClientPlayerEntity p, String type) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) return null;
+        if (p == mc.player) return Cosmetics.selectedId(type);
+        if (p.squaredDistanceTo(mc.player) > Cosmetics.MAX_DIST_SQ) return null;
+        String[] v = USERS.get(p.getName().getString().toLowerCase(Locale.ROOT));
+        if (v == null) return null;
+        String x = "wings".equals(type) ? v[1] : "pet".equals(type) ? v[3] : v[2];
+        return x == null || "none".equals(x) ? null : x;
+    }
     private static final AtomicBoolean PUSH = new AtomicBoolean(), SELF = new AtomicBoolean(), OTHERS = new AtomicBoolean(), CAT = new AtomicBoolean();
     private static final ExecutorService POOL = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Atenas-Cosmetics");
@@ -114,6 +138,11 @@ public final class CosmeticSync {
                 try {
                     JsonObject b = new JsonObject();
                     b.addProperty("cape", id == null ? "none" : id);
+                    String wg = Cosmetics.selectedId("wings"), ht = Cosmetics.selectedId("hat");
+                    b.addProperty("wings", wg == null ? "none" : wg);
+                    b.addProperty("hat", ht == null ? "none" : ht);
+                    String pt = Cosmetics.selectedId("pet");
+                    b.addProperty("pet", pt == null ? "none" : pt);
                     Social.post(me, "/cosmetics/set", b);
                     if (sentRev == rev) dirty = false;
                     problem = null;
@@ -133,7 +162,8 @@ public final class CosmeticSync {
                     problem = null;
                     if (v == null) { if (seen == rev) { dirty = true; } return; } // el servicio no te conoce: sube lo que tienes
                     String cape = str(v, "cape");
-                    mc.execute(() -> { if (seen == rev && !dirty) Cosmetics.applyRemote(cape); });
+                    final String wg = str(v, "wings"), ht = str(v, "hat"), pe = str(v, "pet");
+                    mc.execute(() -> { if (seen == rev && !dirty) { Cosmetics.applyRemote(cape); Cosmetics.applyRemote("wings", wg); Cosmetics.applyRemote("hat", ht); Cosmetics.applyRemote("pet", pe); } });
                 } catch (Exception e) { fail("bajar lo tuyo", e); lastSelf = System.currentTimeMillis() - 10000; }
                 finally { SELF.set(false); }
             });
@@ -162,6 +192,7 @@ public final class CosmeticSync {
                     JsonObject v = players.get(n) == null ? null : players.get(n).getAsJsonObject();
                     String cape = v == null ? null : str(v, "cape");
                     if (cape == null) REMOTE.remove(n); else REMOTE.put(n, cape);
+                    if (v == null) USERS.remove(n); else USERS.put(n, new String[] {cape, str(v, "wings"), str(v, "hat"), str(v, "pet")});
                 }
             } catch (Exception e) { fail("bajar los de otros", e); lastOthers = 0; }
             finally { OTHERS.set(false); }

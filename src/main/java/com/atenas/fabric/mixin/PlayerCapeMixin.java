@@ -15,14 +15,20 @@ import net.minecraft.util.AssetInfo;
 import net.minecraft.util.Identifier;
 
 /**
- * UNICO punto donde se engancha la capa: se cambia la textura de capa de las SkinTextures del jugador y el juego dibuja la capa de siempre
- * (misma fisica de tela y misma animacion que vanilla). Si la capa de Atenas aun carga, se deja la que ya tenia.
- * Si el compilador protesta por un nombre de Yarn (SkinTextures / AssetInfo.TextureAssetInfo), es aqui donde hay que ajustarlo.
+ * Capa: se cambia la textura de capa de las SkinTextures. ARREGLO DEL CRASH: antes habia UN solo inject con el nombre de Yarn
+ * ("getSkinTextures") y, sin refmap en el jar, el juego no lo encontraba y moria ("Mixin transformation of class_742 failed").
+ * Ahora hay dos inyecciones con require = 0 (si no encuentran el metodo se saltan, NUNCA tumban el juego): una con el nombre de Yarn
+ * (se remapea si hay refmap) y otra con el nombre intermediary (remap = false, funciona aunque no haya refmap). Es idempotente.
  */
 @Mixin(AbstractClientPlayerEntity.class)
 public abstract class PlayerCapeMixin {
-    @Inject(method = "getSkinTextures", at = @At("RETURN"), cancellable = true)
-    private void atenas$cape(CallbackInfoReturnable<SkinTextures> cir) {
+    @Inject(method = "getSkinTextures", at = @At("RETURN"), cancellable = true, require = 0)
+    private void atenas$cape(CallbackInfoReturnable<SkinTextures> cir) { apply(cir); }
+
+    @Inject(method = "method_52814", at = @At("RETURN"), cancellable = true, remap = false, require = 0)
+    private void atenas$capeI(CallbackInfoReturnable<SkinTextures> cir) { apply(cir); }
+
+    private void apply(CallbackInfoReturnable<SkinTextures> cir) {
         String id = CosmeticSync.capeOf((AbstractClientPlayerEntity) (Object) this);
         if (id == null) return;
         Identifier tex = CapeTextures.get(Cosmetics.find(id));

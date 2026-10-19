@@ -52,6 +52,8 @@ public final class HudExtras {
             PlayerListEntry e = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
             if (e != null) out.add("Ping " + e.getLatency() + " ms");
         }
+        if (Config.get("combo", true)) out.add(Extras.comboText());
+        if (Config.get("reach", true)) out.add(Extras.reachText());
         if (Config.get("speed", false)) out.add(String.format(Locale.ROOT, "%.1f b/s", speed));
         if (Config.get("memory", false)) {
             Runtime rt = Runtime.getRuntime();
