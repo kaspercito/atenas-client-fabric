@@ -30,12 +30,19 @@ public final class HudPos {
         Config.save();
     }
 
+    /** Ancla del panel sin desplazamiento: {x, y} de su esquina superior izquierda antes de sumar dx/dy (la usa el Editor HUD para arrastrar). */
+    public static int[] anchor(HudPanels.Panel p, int sw, int w) {
+        int sW = Math.max(1, (int) (w * scale(p.id)));
+        int ax = p.right ? sw - sW - 6 : p.id.equals("wp") ? sw / 2 - 80 : p.ax;
+        return new int[] {ax, p.ay};
+    }
+
     /** Esquina superior izquierda del panel en pantalla: ancla (izquierda o pegado a la derecha) + desplazamiento, siempre dentro de la pantalla. */
     public static int[] pos(HudPanels.Panel p, int sw, int sh, int w, int h) {
         float sc = scale(p.id);
         int sW = Math.max(1, (int) (w * sc)), sH = Math.max(1, (int) (h * sc));
-        int ax = p.right ? sw - sW - 6 : p.id.equals("wp") ? sw / 2 - 80 : p.ax;
-        int x = Math.round(ax + dx(p.id)), y = Math.round(p.ay + dy(p.id));
+        int[] a = anchor(p, sw, w);
+        int x = Math.round(a[0] + dx(p.id)), y = Math.round(a[1] + dy(p.id));
         x = Math.max(0, Math.min(Math.max(0, sw - Math.min(sW, 12)), x));
         y = Math.max(0, Math.min(Math.max(0, sh - Math.min(sH, 12)), y));
         return new int[] {x, y, sW, sH};

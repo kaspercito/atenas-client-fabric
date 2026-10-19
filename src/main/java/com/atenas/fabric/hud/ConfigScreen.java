@@ -20,64 +20,27 @@ import net.minecraft.text.Text;
 
 /** Menu de Atenas Client (Right Shift): mismo diseno que AtenasMenu de 1.8.9. Clic: activa/desactiva; engranaje o clic derecho: ajustes. */
 public final class ConfigScreen extends Screen {
-    // clave de Config -> [nombre visible, activado por defecto]
+    // clave de Config -> [nombre visible, activado por defecto]. Sale de Modules: una sola fuente para este menu, los paneles del HUD y /atenas.
     private static final Map<String, Object[]> ITEMS = new LinkedHashMap<>();
-    static {
-        ITEMS.put("hud", new Object[] {"HUD", true});
-        ITEMS.put("fps", new Object[] {"FPS", true});
-        ITEMS.put("coords", new Object[] {"Coordenadas", true});
-        ITEMS.put("direction", new Object[] {"Direccion", true});
-        ITEMS.put("time", new Object[] {"Hora", true});
-        ITEMS.put("waypoints", new Object[] {"Waypoints", true});
-        ITEMS.put("team", new Object[] {"Team View", true});
-        ITEMS.put("voice", new Object[] {"Voice chat", true});
-        ITEMS.put("cps", new Object[] {"CPS", true});
-        ITEMS.put("ping", new Object[] {"Ping", true});
-        ITEMS.put("keystrokes", new Object[] {"Teclas", true});
-        ITEMS.put("armor", new Object[] {"Armadura", true});
-        ITEMS.put("potions", new Object[] {"Pociones", true});
-        ITEMS.put("speed", new Object[] {"Velocidad", false});
-        ITEMS.put("memory", new Object[] {"Memoria", false});
-        ITEMS.put("clock", new Object[] {"Reloj real", false});
-        ITEMS.put("combo", new Object[] {"Combo", true});
-        ITEMS.put("reach", new Object[] {"Alcance (Reach)", true});
-        ITEMS.put("crosshair", new Object[] {"Mira propia", true});
-        ITEMS.put("nobg", new Object[] {"TAB/Score sin fondo", true});
-        ITEMS.put("tablogo", new Object[] {"Logo en TAB/nametag", true});
-        ITEMS.put("blockoverlay", new Object[] {"Resalte de bloque", true});
-        ITEMS.put("atenasmenu", new Object[] {"Men\u00fa Atenas", true});
-        ITEMS.put("fullbright", new Object[] {"Fullbright", false});
-        ITEMS.put("zoom", new Object[] {"Zoom", true});
-        ITEMS.put("perspective", new Object[] {"Perspectiva libre", true});
-        ITEMS.put("movement", new Object[] {"Movimiento", false});
-        ITEMS.put("chat", new Object[] {"Chat", true});
-        ITEMS.put("autotext", new Object[] {"Autotext", true});
-    }
+    /** Sin portar todavia a 1.21.11: no se muestran para no ofrecer interruptores que no hacen nada (Animaciones 1.7 y Rendimiento). */
+    private static final java.util.Set<String> HIDDEN = java.util.Set.of("anim17", "perf");
 
     // categorias de 1.8.9 (Module.Category): HUD, PvP, Animaciones, Rendimiento, Chat, Utilidades
     private static final String[] CATS = {"Todos", "HUD", "PvP", "Animaciones", "Rendimiento", "Chat", "Utilidades"};
     private static final int[] CAT_COL = {Ui.ACCENT, Ui.CYAN, Ui.RED, Ui.ACCENT, Ui.GREEN, Ui.VIOLET, Ui.AMBER};
     private static final Map<String, Object[]> META = new java.util.HashMap<>();
-    private static void m(String k, int cat, String d) { META.put(k, new Object[] {cat, d}); }
     static {
-        m("hud", 1, "Muestra u oculta todo el HUD de Atenas."); m("fps", 1, "Fotogramas por segundo en pantalla.");
-        m("coords", 1, "Tus coordenadas X, Y y Z."); m("direction", 1, "Hacia donde miras (N, S, E, O).");
-        m("time", 1, "Hora del mundo de Minecraft."); m("waypoints", 6, "Marcas compartidas con 1.8.9 y 1.20.1.");
-        m("team", 2, "Ve a tus amigos en el servidor. Engranaje: opciones."); m("voice", 5, "Chat de voz por proximidad.");
-        m("cps", 2, "Clics por segundo."); m("ping", 1, "Latencia con el servidor.");
-        m("keystrokes", 2, "Teclas W A S D y clics en pantalla."); m("armor", 2, "Durabilidad de tu armadura.");
-        m("potions", 2, "Efectos de pocion activos."); m("speed", 1, "Tu velocidad en bloques por segundo.");
-        m("memory", 1, "Uso de memoria de Java."); m("clock", 1, "Hora real de tu equipo.");
-        m("combo", 2, "Golpes seguidos sin recibir dano."); m("reach", 2, "Distancia de tu ultimo golpe.");
-        m("crosshair", 2, "Mira propia del cliente."); m("nobg", 1, "TAB y marcador sin fondo.");
-        m("tablogo", 6, "Logo de Atenas junto a los usuarios del cliente."); m("blockoverlay", 2, "Resalte del bloque que apuntas.");
-        m("atenasmenu", 6, "Usa el menu principal de Atenas."); m("fullbright", 6, "Brillo maximo para ver de noche.");
-        m("zoom", 6, "Manten C para acercar; la rueda cambia el nivel.");
-        m("perspective", 6, "Manten Y y mira alrededor sin girar al personaje."); m("movement", 2, "Sprint automatico y agacharse con toggle.");
-        m("chat", 5, "Hora, historial largo y copiar con clic derecho."); m("autotext", 5, "Numpad 1-4 envian mensajes o comandos.");
+        for (Modules.M m : Modules.all().values()) {
+            if (HIDDEN.contains(m.key)) continue;
+            ITEMS.put(m.key, new Object[] {m.name, m.def});
+            META.put(m.key, new Object[] {m.cat, m.desc});
+        }
     }
 
-    private static final int SIDE = 104;
+    /** Claves de los modulos que muestra el menu (las usa /atenas). */
+    public static java.util.Collection<String> visibleModules() { return ITEMS.keySet(); }
+
+    private static final int SIDE = 104, SIDE_LABELS = 7;
     private int tab, filter, scroll, x0, y0, pw, ph;
     private float scrollSmooth;
     private final Screen parent;
@@ -126,7 +89,11 @@ public final class ConfigScreen extends Screen {
 
     private void close() { client.setScreen(parent); }
 
-    private void openSettings(String k) { client.setScreen(new ModSettingsScreen(this, k, (String) ITEMS.get(k)[0])); }
+    /** Engranaje de TODOS los modulos: Autotext abre su editor de atajos; el resto, su panel de ajustes (con scroll). */
+    private void openSettings(String k) {
+        if (k.equals("autotext")) client.setScreen(new AutotextScreen(this));
+        else client.setScreen(new ModSettingsScreen(this, k, (String) ITEMS.get(k)[0]));
+    }
 
     // ------------------------------------------------------------------ input
 
@@ -138,14 +105,16 @@ public final class ConfigScreen extends Screen {
         searchFocus = false;
         if (btn != 0 && btn != 1) return true;
         if (btn == 0) {
-            int step = Math.max(17, Math.min(25, (ph - 78) / 5)), rowH = step - 3, y = y0 + 50;
-            for (int i = 0; i < 5; i++, y += step) {
+            int step = Math.max(17, Math.min(25, (ph - 78) / SIDE_LABELS)), rowH = step - 3, y = y0 + 50;
+            for (int i = 0; i < SIDE_LABELS; i++, y += step) {
                 if (Ui.inside(mx, my, x0 + 6, y, SIDE - 12, rowH)) {
                     switch (i) {
                         case 0: tab = 0; break;
                         case 1: com.atenas.fabric.cosmetics.CosmeticSync.refreshNow(); client.setScreen(new com.atenas.fabric.cosmetics.CosmeticsScreen(this)); break;
                         case 2: client.setScreen(new HudEditorScreen(this)); break;
                         case 3: client.setScreen(new FriendsScreen(this)); break;
+                        case 4: client.setScreen(new WaypointScreen(this)); break;
+                        case 5: client.setScreen(new TeamScreen(this)); break;
                         default: tab = 1; break;
                     }
                     return true;
@@ -171,9 +140,8 @@ public final class ConfigScreen extends Screen {
             int x = bx + (i % cols) * (cw + gap), yy = top + (i / cols) * (chh + gap) - off;
             if (!Ui.inside(mx, my, x, yy, cw, chh)) continue;
             String k = keys.get(i);
-            boolean has = Settings.has(k);
-            if (btn == 1) { if (has) openSettings(k); return true; }
-            if (has && Ui.inside(mx, my, x + cw - 22, yy + chh - 20, 20, 20)) { openSettings(k); return true; }
+            if (btn == 1) { openSettings(k); return true; }
+            if (Ui.inside(mx, my, x + cw - 22, yy + chh - 20, 20, 20)) { openSettings(k); return true; }
             flip(k);
             return true;
         }
@@ -232,10 +200,10 @@ public final class ConfigScreen extends Screen {
         Ui.logo(g, x0 + 10, y0 + 12, 28);
         com.atenas.fabric.gui.Fx.heading(g, "ATENAS", x0 + 44, y0 + 14, Ui.ACCENT);
         com.atenas.fabric.gui.Fx.heading(g, "CLIENT", x0 + 44, y0 + 25, Ui.DIM);
-        String[] labels = {"Mods", "Cosm\u00e9ticos", "Editor HUD", Friends.badge("Amigos"), "Acerca de"};
+        String[] labels = {"Mods", "Cosm\u00e9ticos", "Editor HUD", Friends.badge("Amigos"), "Waypoints", "Equipo", "Acerca de"};
         int step = Math.max(17, Math.min(25, (ph - 78) / labels.length)), rowH = step - 3, y = y0 + 50;
         for (int i = 0; i < labels.length; i++, y += step) {
-            boolean active = (i == 0 && tab == 0) || (i == 4 && tab == 1);
+            boolean active = (i == 0 && tab == 0) || (i == labels.length - 1 && tab == 1);
             boolean hover = Ui.inside(mx, my, x0 + 6, y, SIDE - 12, rowH);
             if (active) { Ui.card(g, x0 + 6, y, SIDE - 12, rowH, Ui.PANEL2, Ui.BORDER); Ui.gradient(g, x0 + 6, y + 3, 2, rowH - 6, Ui.VIOLET, Ui.PINK, true); }
             else if (hover) Ui.card(g, x0 + 6, y, SIDE - 12, rowH, Ui.HOVER, Ui.HOVER);
@@ -285,7 +253,7 @@ public final class ConfigScreen extends Screen {
             int x = bx + (i % cols) * (cw + gap), yy = top + (i / cols) * (chh + gap) - off;
             if (yy + chh < top || yy > top + listH) continue;
             int col = CAT_COL[cat(k)];
-            boolean onK = on(k), has = Settings.has(k), hov = Ui.inside(mx, my, x, yy, cw, chh) && my >= top && my < top + listH;
+            boolean onK = on(k), has = true, hov = Ui.inside(mx, my, x, yy, cw, chh) && my >= top && my < top + listH;
             Ui.card(g, x, yy, cw, chh, hov ? Ui.PANEL2 : Ui.PANEL, onK ? col : hov ? Ui.ACCENT_DIM : Ui.BORDER);
             if (onK) g.fillGradient(x + 1, yy + 1, x + cw - 1, yy + chh - 1, 0x00000000, (0x26 << 24) | (col & 0xFFFFFF));
             String name = (String) ITEMS.get(k)[0];

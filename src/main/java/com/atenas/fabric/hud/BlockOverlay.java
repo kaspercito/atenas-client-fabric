@@ -1,7 +1,5 @@
 package com.atenas.fabric.hud;
 
-import com.atenas.fabric.shared.Config;
-
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -13,8 +11,9 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Resalte del bloque que miras (color violeta de Atenas, relleno y borde grueso). Sin tocar el render del mundo: se proyectan las 8 esquinas
- * del bloque a la pantalla y se dibujan sus caras visibles con el DrawContext. Solo en primera persona. El contorno negro de vanilla queda debajo.
+ * Resalte del bloque que miras: color, grosor y relleno salen de los ajustes del modulo (Settings "blockoverlay": color, width, fill, fillalpha;
+ * mismos valores por defecto que 1.8.9). Sin tocar el render del mundo: se proyectan las 8 esquinas del bloque a la pantalla y se dibujan sus
+ * caras visibles con el DrawContext. Solo en primera persona. El contorno negro de vanilla queda debajo.
  */
 public final class BlockOverlay {
     private BlockOverlay() {}
@@ -23,7 +22,7 @@ public final class BlockOverlay {
     private static final double[][] NORMAL = {{0, 0, -1}, {0, 0, 1}, {0, -1, 0}, {0, 1, 0}, {-1, 0, 0}, {1, 0, 0}};
 
     public static void draw(MinecraftClient mc, DrawContext g, float pt) {
-        if (!Config.get("blockoverlay", true) || mc.world == null || mc.player == null) return;
+        if (!Modules.on("blockoverlay") || mc.world == null || mc.player == null) return;
         if (mc.options.getPerspective() != Perspective.FIRST_PERSON) return;
         if (!(mc.crosshairTarget instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) return;
         BlockPos pos = hit.getBlockPos();
@@ -57,23 +56,29 @@ public final class BlockOverlay {
             double px = mid[0] + NORMAL[i][0] * half[0] - cam.x, py = mid[1] + NORMAL[i][1] * half[1] - cam.y, pz = mid[2] + NORMAL[i][2] * half[2] - cam.z;
             vis[i] = px * NORMAL[i][0] + py * NORMAL[i][1] + pz * NORMAL[i][2] < 0;
         }
+        int rgb = Settings.color("blockoverlay", "color") & 0xFFFFFF;
+        int thick = Math.max(1, Math.round(Settings.clamped("blockoverlay", "width")));
+        boolean fill = Settings.b("blockoverlay", "fill");
+        int fillCol = ((int) (Math.max(0.05f, Math.min(0.6f, Settings.clamped("blockoverlay", "fillalpha"))) * 255f) << 24) | rgb;
+        int lineCol = 0xFF000000 | rgb;
         for (int i = 0; i < 6; i++) {
             if (!vis[i]) continue;
             int[] q = FACES[i];
             boolean ok = true;
             for (int k : q) if (sp[k] == null) ok = false;
             if (!ok) continue;
-            fillQuad(g, sp[q[0]], sp[q[1]], sp[q[2]], sp[q[3]], W, H, 0x408B5CF6);
-            for (int k = 0; k < 4; k++) line(g, sp[q[k]], sp[q[(k + 1) % 4]], 0xFFA78BFA);
+            if (fill) fillQuad(g, sp[q[0]], sp[q[1]], sp[q[2]], sp[q[3]], W, H, fillCol);
+            for (int k = 0; k < 4; k++) line(g, sp[q[k]], sp[q[(k + 1) % 4]], lineCol, thick);
         }
     }
 
-    private static void line(DrawContext g, double[] a, double[] b, int col) {
+    /** Linea de Bresenham con grosor: cada punto es un cuadrado de "t" x "t" centrado en la linea. */
+    private static void line(DrawContext g, double[] a, double[] b, int col, int t) {
         int x0 = (int) Math.round(a[0]), y0 = (int) Math.round(a[1]), x1 = (int) Math.round(b[0]), y1 = (int) Math.round(b[1]);
         if (Math.abs(x0) > 4000 || Math.abs(y0) > 4000 || Math.abs(x1) > 4000 || Math.abs(y1) > 4000) return;
         int dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
         for (int n = 0; n < 3000; n++) {
-            g.fill(x0, y0, x0 + 1, y0 + 1, col);
+            g.fill(x0 - t / 2, y0 - t / 2, x0 - t / 2 + t, y0 - t / 2 + t, col);
             if (x0 == x1 && y0 == y1) break;
             int e2 = 2 * err;
             if (e2 > -dy) { err -= dy; x0 += sx; }

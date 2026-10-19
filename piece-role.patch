@@ -1,0 +1,35 @@
+From 641ec6e8905b0d5e056759a760646866714cb059 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 09:24:00 -0500
+Subject: [PATCH] PetRender: agregar campo role a Piece y leerlo de models.json
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014hKMfzubXBu8gXWs94xyjE
+---
+ src/main/java/com/atenas/fabric/cosmetics/PetRender.java | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/main/java/com/atenas/fabric/cosmetics/PetRender.java b/src/main/java/com/atenas/fabric/cosmetics/PetRender.java
+index 8070a8c..15cf022 100644
+--- a/src/main/java/com/atenas/fabric/cosmetics/PetRender.java
++++ b/src/main/java/com/atenas/fabric/cosmetics/PetRender.java
+@@ -30,7 +30,7 @@ import org.joml.Vector3f;
+ public final class PetRender {
+     private PetRender() {}
+ 
+-    private static final class Piece { String name, parent; float[] s = new float[3], o = new float[3], at = new float[3], uv = new float[2]; }
++    private static final class Piece { String name, parent, role = ""; float[] s = new float[3], o = new float[3], at = new float[3], uv = new float[2]; }
+     private static final class Kind { float scale = 1f, tailUp, tailCurl, earRest; boolean hop; List<Piece> pieces = new ArrayList<>(); }
+     private static final class Pet { double x, z, y; double hx, hz = -1; float walk; long last; boolean init; }
+ 
+@@ -62,6 +62,7 @@ public final class PetRender {
+                     Piece p = new Piece();
+                     p.name = po.get("n").getAsString();
+                     p.parent = po.has("p") ? po.get("p").getAsString() : "";
++                    p.role = po.has("role") ? po.get("role").getAsString() : "";
+                     for (int i = 0; i < 3; i++) { p.s[i] = po.getAsJsonArray("s").get(i).getAsFloat(); p.o[i] = po.getAsJsonArray("o").get(i).getAsFloat(); p.at[i] = po.getAsJsonArray("at").get(i).getAsFloat(); }
+                     for (int i = 0; i < 2; i++) p.uv[i] = po.getAsJsonArray("uv").get(i).getAsFloat();
+                     kk.pieces.add(p);
+-- 
+2.43.0
+

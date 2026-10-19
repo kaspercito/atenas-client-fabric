@@ -34,7 +34,10 @@ public final class TeamSync {
         b.addProperty("server", server); b.addProperty("share", share); b.addProperty("friends", friends);
         b.addProperty("dim", dim); b.addProperty("x", x); b.addProperty("y", y); b.addProperty("z", z);
         b.addProperty("hp", hp); b.addProperty("max", max);
-        b.add("manual", new com.google.gson.JsonArray());
+        // lista manual de equipo (H): el servicio la usa para devolver tambien a estos jugadores aunque esten lejos
+        com.google.gson.JsonArray manual = new com.google.gson.JsonArray();
+        for (String n : com.atenas.fabric.hud.TeamStore.names()) manual.add(n);
+        b.add("manual", manual);
         Thread t = new Thread(() -> {
             try {
                 JsonObject res = Social.post(me, "/team/sync", b);

@@ -35,6 +35,11 @@ public final class AtenasFabricClient implements ClientModInitializer {
         catch (Throwable t) { if (FAILED.add(name)) { System.out.println("[Atenas] modulo '" + name + "' fallo: " + t); t.printStackTrace(); } }
     }
 
+    /** Lo usa Hud (y quien dibuje): un fallo repetido cada frame se escribe UNA sola vez en el log, con su traza, y el juego sigue. */
+    public static void reportOnce(String name, Throwable t) {
+        if (FAILED.add(name)) { System.out.println("[Atenas] '" + name + "' fallo: " + t); t.printStackTrace(); }
+    }
+
     @Override
     public void onInitializeClient() {
         System.out.println("[AtenasClient] 1.21.11 listo. Waypoints en " + SharedDir.dir());
@@ -66,7 +71,7 @@ public final class AtenasFabricClient implements ClientModInitializer {
                     .executes(ctx -> {
                         String m = StringArgumentType.getString(ctx, "modulo");
                         if (!Mods.toggleNames().contains(m)) { ctx.getSource().sendFeedback(Text.literal("Modulos: " + String.join(", ", Mods.toggleNames()))); return 0; }
-                        boolean on = Config.toggle(m, !java.util.Set.of("fullbright", "speed", "memory", "clock", "movement").contains(m));
+                        boolean on = Config.toggle(m, com.atenas.fabric.hud.Modules.def(m));
                         ctx.getSource().sendFeedback(Text.literal(m + (on ? ": activado" : ": desactivado")));
                         return 1;
                     }))));
