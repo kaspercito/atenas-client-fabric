@@ -83,11 +83,11 @@ public final class ChatCopy {
         if (!ok) return null;
         ChatHud chat = mc.inGameHud.getChatHud();
         List<?> visible = (List<?>) visibleF.get(chat);
-        double scale = chat.getChatScale();
+        double scale = mc.options.getChatScale().getValue(); // ChatHud.getChatScale() es privado: mismo valor, desde las opciones
         double spacing = mc.options.getChatLineSpacing().getValue();
         double cx = mx / scale - 4.0;
         double cy = (mc.getWindow().getScaledHeight() - my - 40.0) / (scale * (spacing + 1.0));
-        if (cx < -4.0 || cx > Math.floor(chat.getWidth() / scale)) return null;
+        if (cx < -4.0 || cx > Math.floor(Math.floor(mc.options.getChatWidth().getValue() * 280.0 + 40.0) / scale)) return null;
         int shown = Math.min(chat.getVisibleLineCount(), visible.size());
         double lines = cy / 9.0;
         if (lines < 0 || lines >= shown) return null;
