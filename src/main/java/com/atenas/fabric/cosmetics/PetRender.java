@@ -108,7 +108,7 @@ public final class PetRender {
         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yawDeg));
         float sc = k.scale;
         ms.scale(sc, sc, sc);
-        queue.submitCustom(ms, RenderLayers.getEntityCutoutNoCull(tex), (e, vc) -> {
+        queue.submitCustom(ms, RenderLayers.entityCutoutNoCull(tex), (e, vc) -> {
             Map<String, float[]> pivots = new HashMap<>();
             for (Piece pc : k.pieces) {
                 float[] par = pc.parent.isEmpty() ? new float[3] : pivots.getOrDefault(pc.parent, new float[3]);

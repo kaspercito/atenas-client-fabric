@@ -22,7 +22,7 @@ import net.minecraft.util.Identifier;
  */
 @Mixin(AbstractClientPlayerEntity.class)
 public abstract class PlayerCapeMixin {
-    @Inject(method = "getSkinTextures", at = @At("RETURN"), cancellable = true, require = 0)
+    @Inject(method = {"getSkin", "getSkinTextures"}, at = @At("RETURN"), cancellable = true, require = 0)
     private void atenas$cape(CallbackInfoReturnable<SkinTextures> cir) { apply(cir); }
 
     @Inject(method = "method_52814", at = @At("RETURN"), cancellable = true, remap = false, require = 0)
