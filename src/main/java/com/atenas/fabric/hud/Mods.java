@@ -20,10 +20,10 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.option.Perspective;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 /** Modulos con logica por tick: zoom, perspectiva, fullbright, autotext, voz, Team View y el contexto de mundo de los waypoints. */
@@ -35,8 +35,17 @@ public final class Mods {
     private static final KeyBinding[] AUTO = new KeyBinding[4];
     private static final String[] AUTO_TEXT = new String[4];
 
-    private static boolean zooming, autoSprint; private static int savedFov; private static float curFov;
+    private static boolean autoSprint;
     private static boolean fbOn;
+
+    // zoom: multiplicador actual (1 = sin zoom). Lo lee ZoomFovMixin; si ese mixin no se aplico (fovHooked) se usa el FOV de las opciones.
+    public static boolean fovHooked;
+    private static float zoomCur = 1f;
+    private static boolean legacyFov; private static int savedFov;
+
+    /** Tope del historial del chat con "Chat largo" (lineas y mensajes). Vanilla: 100. */
+    public static final int CHAT_MAX = 20000;
+    private static Text lastStamped;
 
     private static KeyBinding key(String id, int code) {
         return KeyBindingHelper.registerKeyBinding(new KeyBinding("key.atenasclientfabric." + id, InputUtil.Type.KEYSYM, code, CAT));
@@ -52,16 +61,40 @@ public final class Mods {
         deafen = key("voice_deafen", GLFW.GLFW_KEY_U);
         for (int i = 0; i < 4; i++) AUTO[i] = key("autotext_" + (i + 1), GLFW.GLFW_KEY_KP_1 + i);
         loadAutotext();
-        // Chat: hora [HH:mm] delante de cada mensaje (mensajes del servidor y de jugadores)
+        // Chat: la hora [HH:mm] de TODOS los mensajes la pone ChatHudMixin (Fabric API no trae MODIFY_CHAT en 1.21.11).
+        // Este evento queda de respaldo para los mensajes del sistema si el mixin no se aplicara; stamp() no estampa dos veces.
         net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.MODIFY_GAME.register((msg, overlay) -> overlay ? msg : stamp(msg));
-        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.MODIFY_CHAT.register((msg, signed, sender, params, ts) -> stamp(msg));
+        ChatCopy.register();
     }
 
-    private static net.minecraft.text.Text stamp(net.minecraft.text.Text msg) {
+    /** Pone [HH:mm] delante del mensaje. Devuelve el MISMO objeto si no hay que tocarlo o si ya lo estampamos (para no duplicar la hora). */
+    public static Text stamp(Text msg) {
+        if (msg == null || msg == lastStamped) return msg;
         if (!Config.get("chat", true) || !Settings.b("chat", "time")) return msg;
         String f = Settings.b("chat", "seconds") ? "HH:mm:ss" : "HH:mm";
-        return net.minecraft.text.Text.literal("[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(f)) + "] ")
+        Text out = Text.literal("[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(f)) + "] ")
             .formatted(net.minecraft.util.Formatting.GRAY).append(msg);
+        lastStamped = out;
+        return out;
+    }
+
+    /** Lo usa ChatHudMixin en los dos topes de 100 de ChatHud. */
+    public static int chatLimit(int vanilla) {
+        return Config.get("chat", true) && Settings.b("chat", "long") ? CHAT_MAX : vanilla;
+    }
+
+    /** Multiplicador de zoom actual (lo lee ZoomFovMixin). */
+    public static float zoomMul() { return zoomCur; }
+
+    /** Rueda del mouse (ZoomScrollMixin): con la tecla de zoom pulsada cambia el nivel. true = el evento se consume (no cambia la ranura). */
+    public static boolean zoomWheel(double v) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (v == 0 || zoom == null || mc.currentScreen != null || !zoom.isPressed()) return false;
+        if (!Config.get("zoom", true) || !Settings.b("zoom", "wheel")) return false;
+        float lvl = Settings.n("zoom", "level") + (v > 0 ? 0.5f : -0.5f);
+        Settings.setNum("zoom", "level", Math.max(1.5f, Math.min(10f, lvl)));
+        Config.save();
+        return true;
     }
 
     /** <.minecraft>/atenas/autotext.txt: una linea por tecla (Numpad 1-4). Se crea con ejemplos. Lineas con "/" son comandos. */
@@ -98,7 +131,8 @@ public final class Mods {
             WaypointStore.setContext(null, 0);
             TeamSync.clear();
             VoiceClient.stop();
-            zooming = false; fbOn = false;
+            zoomCur = 1f; legacyFov = false; fbOn = false;
+            Freelook.reset();
             return;
         }
         // ---- contexto de mundo (claves iguales a 1.8.9) ----
@@ -114,14 +148,16 @@ public final class Mods {
         int dim = "minecraft:overworld".equals(dimId) ? 0 : "minecraft:the_nether".equals(dimId) ? -1 : "minecraft:the_end".equals(dimId) ? 1 : 2 + (dimId.hashCode() & 0xFFFF);
         WaypointStore.setContext(key, dim);
 
-        // ---- zoom: mantener la tecla; FOV configurable y suave; se restaura al soltar ----
+        // ---- zoom: mantener la tecla; la rueda cambia el nivel; suave; vuelve solo al soltar ----
         boolean z = Config.get("zoom", true) && zoom.isPressed() && mc.currentScreen == null;
-        if (z && !zooming) { savedFov = mc.options.getFov().getValue(); curFov = savedFov; zooming = true; }
-        if (zooming) {
-            float target = z ? Settings.n("zoom", "fov") : savedFov;
-            curFov = Settings.b("zoom", "smooth") ? curFov + (target - curFov) * 0.35f : target;
-            mc.options.getFov().setValue(Math.max(30, Math.min(110, Math.round(curFov))));
-            if (!z && Math.abs(curFov - savedFov) < 1.5f) { mc.options.getFov().setValue(savedFov); zooming = false; }
+        float zt = z ? Math.max(1.5f, Math.min(10f, Settings.n("zoom", "level"))) : 1f;
+        zoomCur = Settings.b("zoom", "smooth") ? zoomCur + (zt - zoomCur) * 0.35f : zt;
+        if (Math.abs(zoomCur - zt) < 0.02f) zoomCur = zt;
+        if (!fovHooked) { // respaldo: si el mixin del FOV no esta, se baja la opcion de FOV (minimo 30)
+            if (zoomCur > 1.01f) {
+                if (!legacyFov) { savedFov = mc.options.getFov().getValue(); legacyFov = true; }
+                mc.options.getFov().setValue(Math.max(30, Math.min(110, Math.round(savedFov / zoomCur))));
+            } else if (legacyFov) { mc.options.getFov().setValue(savedFov); legacyFov = false; }
         }
 
         // ---- movimiento: sprint automatico y agacharse con toggle ----
@@ -132,10 +168,8 @@ public final class Mods {
             mc.options.getSneakToggled().setValue(Settings.b("movement", "sneak"));
         }
 
-        // ---- perspectiva: alterna primera persona / tercera persona trasera ----
-        while (perspective.wasPressed()) {
-            mc.options.setPerspective(mc.options.getPerspective() == Perspective.FIRST_PERSON ? Perspective.THIRD_PERSON_BACK : Perspective.FIRST_PERSON);
-        }
+        // ---- perspectiva libre: mantener Y (o alternar) y la camara gira sin mover al personaje ----
+        Freelook.tick(mc, perspective);
 
         // ---- fullbright: vision nocturna visual (se renueva sin particulas ni icono) ----
         while (fullbright.wasPressed()) {
@@ -177,7 +211,7 @@ public final class Mods {
 
     public static List<String> toggleNames() {
         List<String> l = new ArrayList<>();
-        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu", "zoom", "movement", "chat", "autotext"}) l.add(s);
+        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu", "zoom", "perspective", "movement", "chat", "autotext"}) l.add(s);
         return l;
     }
 }

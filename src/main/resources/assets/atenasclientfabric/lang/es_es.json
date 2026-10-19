@@ -1,9 +1,9 @@
 {
   "key.atenasclientfabric.menu": "Menú de Atenas Client",
   "key.category.atenasclientfabric.main": "Atenas Client",
-  "key.atenasclientfabric.zoom": "Zoom (mantener)",
+  "key.atenasclientfabric.zoom": "Zoom (mantener, rueda = nivel)",
   "key.atenasclientfabric.fullbright": "Fullbright",
-  "key.atenasclientfabric.perspective": "Perspectiva",
+  "key.atenasclientfabric.perspective": "Perspectiva libre (mantener)",
   "key.atenasclientfabric.voice_ptt": "Voz: pulsar para hablar",
   "key.atenasclientfabric.voice_mute": "Voz: silenciar micrófono",
   "key.atenasclientfabric.voice_deafen": "Voz: silenciar audio",

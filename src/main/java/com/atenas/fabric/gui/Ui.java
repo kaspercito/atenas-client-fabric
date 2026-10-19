@@ -227,10 +227,12 @@ public final class Ui {
     /** Boton Atenas (AtenasButton): cristal oscuro con esquinas cortadas, borde de neon y regla que crece desde el centro al pasar el mouse. */
     public static class Btn extends ButtonWidget implements Paintable {
         public float glow;
-        public Btn(int x, int y, int w, int h, Text label, ButtonWidget.PressAction press) {
+        public Btn(int x, int y, int w, int h, net.minecraft.text.Text label, ButtonWidget.PressAction press) {
             super(x, y, w, h, label, press, DEFAULT_NARRATION_SUPPLIER);
             setAlpha(0f); // el widget de vanilla queda invisible: lo dibujamos nosotros encima (paint)
         }
+        /** Desde 1.21.9 PressableWidget exige drawIcon: el boton se pinta entero en paint(), asi que aqui no hay nada que dibujar. */
+        public void drawIcon(DrawContext g, int mouseX, int mouseY, float delta) { }
         public void paint(DrawContext g, TextRenderer tr) { paint(g); }
         @Override
         public void paint(DrawContext g) {
@@ -257,11 +259,12 @@ public final class Ui {
     public static class MenuBtn extends ButtonWidget implements Paintable {
         private final boolean secondary;
         public float glow;
-        public MenuBtn(int x, int y, int w, int h, Text label, boolean secondary, ButtonWidget.PressAction press) {
+        public MenuBtn(int x, int y, int w, int h, net.minecraft.text.Text label, boolean secondary, ButtonWidget.PressAction press) {
             super(x, y, w, h, label, press, DEFAULT_NARRATION_SUPPLIER);
             this.secondary = secondary;
             setAlpha(0f);
         }
+        public void drawIcon(DrawContext g, int mouseX, int mouseY, float delta) { }
         @Override
         public void paint(DrawContext g) {
             int x = getX(), y = getY(), w = getWidth(), h = getHeight(), cut = 4;
@@ -283,9 +286,10 @@ public final class Ui {
     /** Cuadrado con una X dibujada (no texto): se pone rojo al pasar el mouse (CloseButton de 1.8.9). */
     public static class CloseBtn extends ButtonWidget implements Paintable {
         public CloseBtn(int x, int y, int size, ButtonWidget.PressAction press) {
-            super(x, y, size, size, Text.literal("X"), press, DEFAULT_NARRATION_SUPPLIER);
+            super(x, y, size, size, net.minecraft.text.Text.literal("X"), press, DEFAULT_NARRATION_SUPPLIER);
             setAlpha(0f);
         }
+        public void drawIcon(DrawContext g, int mouseX, int mouseY, float delta) { }
         @Override
         public void paint(DrawContext g) {
             int x = getX(), y = getY(), w = getWidth(), h = getHeight();

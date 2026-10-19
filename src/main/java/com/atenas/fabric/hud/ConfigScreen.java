@@ -46,8 +46,9 @@ public final class ConfigScreen extends Screen {
         ITEMS.put("atenasmenu", new Object[] {"Men\u00fa Atenas", true});
         ITEMS.put("fullbright", new Object[] {"Fullbright", false});
         ITEMS.put("zoom", new Object[] {"Zoom", true});
+        ITEMS.put("perspective", new Object[] {"Perspectiva libre", true});
         ITEMS.put("movement", new Object[] {"Movimiento", false});
-        ITEMS.put("chat", new Object[] {"Chat con hora", true});
+        ITEMS.put("chat", new Object[] {"Chat", true});
         ITEMS.put("autotext", new Object[] {"Autotext", true});
     }
 
@@ -70,12 +71,15 @@ public final class ConfigScreen extends Screen {
         m("crosshair", 5, "Mira propia del cliente."); m("nobg", 5, "TAB y marcador sin fondo.");
         m("tablogo", 4, "Logo de Atenas junto a los usuarios del cliente."); m("blockoverlay", 5, "Resalte del bloque que apuntas.");
         m("atenasmenu", 5, "Usa el menu principal de Atenas."); m("fullbright", 5, "Brillo maximo para ver de noche.");
-        m("zoom", 5, "Mantén C para acercar (FOV y suavidad ajustables)."); m("movement", 2, "Sprint automatico y agacharse con toggle.");
-        m("chat", 4, "Hora [HH:mm] delante de cada mensaje."); m("autotext", 4, "Numpad 1-4 envian mensajes o comandos.");
+        m("zoom", 5, "Mantén C para acercar; la rueda cambia el nivel.");
+        m("perspective", 5, "Mantén Y y mira alrededor sin girar al personaje."); m("movement", 2, "Sprint automatico y agacharse con toggle.");
+        m("chat", 4, "Hora, historial largo y copiar con clic derecho."); m("autotext", 4, "Numpad 1-4 envian mensajes o comandos.");
     }
 
     private static final int SIDE = 104;
     private int tab, filter, scroll, x0, y0, pw, ph;
+
+    public ConfigScreen() { super(Text.literal("Atenas Client")); }
     private net.minecraft.client.gui.widget.TextFieldWidget search;
 
     private static int cat(String k) { return (Integer) META.getOrDefault(k, new Object[] {1, ""})[0]; }

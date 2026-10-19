@@ -51,12 +51,18 @@ public final class Settings {
         color("crosshair", "color", "Color", 0);
         bool("crosshair", "outline", "Contorno negro", true);
         bool("crosshair", "aim", "Rojo al apuntar a una entidad", true);
-        num("zoom", "fov", "FOV al hacer zoom (minimo 30 en el juego)", 30, 30, 70, 1);
+        num("zoom", "level", "Nivel de zoom", 4, 1.5, 10, 0.5);
+        bool("zoom", "wheel", "La rueda ajusta el zoom", true);
         bool("zoom", "smooth", "Zoom suave", true);
+        choice("perspective", "mode", "Modo", 0, "Mantener", "Alternar");
+        bool("perspective", "invert", "Invertir eje vertical", false);
         bool("movement", "sprint", "Sprint automatico", true);
         bool("movement", "sneak", "Agacharse con toggle", false);
         bool("chat", "time", "Hora [HH:mm] en cada mensaje", true);
         bool("chat", "seconds", "Incluir segundos", false);
+        bool("chat", "long", "Chat largo (hasta 20 000 lineas)", true);
+        bool("chat", "copy", "Copiar mensaje con clic derecho", true);
+        bool("chat", "copynotime", "Copiar sin la hora", true);
         for (int i = 1; i <= 4; i++) text("autotext", "line" + i, "Numpad " + i + " (mensaje o /comando)");
     }
 

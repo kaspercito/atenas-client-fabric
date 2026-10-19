@@ -1,3 +1,6 @@
-- Arreglado de raiz el arranque en negro: desde Minecraft 1.21.9 la pantalla de carga avanza en tick() y la de Atenas no se lo pasaba, asi que el juego nunca terminaba de cargar.
-- La pantalla de carga de Atenas termina sola y abre el menu principal.
-- Las novedades se muestran limpias, sin el texto "Full Changelog".
+- Chat largo: el historial guarda hasta 20 000 lineas (antes 100), como en 1.8.9.
+- Copiar un mensaje del chat con clic derecho (con o sin la hora), como en 1.8.9.
+- Perspectiva libre: manten Y y la camara gira alrededor de tu personaje sin girarlo (modo Mantener o Alternar).
+- Zoom con la rueda: manten C y la rueda cambia el nivel de zoom (sin cambiar de ranura).
+- La hora del chat ahora tambien sale en los mensajes de jugadores.
+- Arreglados los errores de compilacion del menu, los botones y el chat.

@@ -78,7 +78,7 @@ public final class ModSettingsScreen extends Screen {
                     Ui.rect(g, cx, y + 11, 120, 2, Ui.BORDER);
                     Ui.rect(g, cx, y + 11, (int) (120 * t), 2, Ui.VIOLET);
                     Ui.rect(g, cx + (int) (120 * t) - 2, y + 7, 5, 10, Ui.ACCENT);
-                    Ui.text(g, String.valueOf(Math.round(v)), cx + 128, y + 8, Ui.DIM);
+                    Ui.text(g, d.step < 1 ? String.format(java.util.Locale.ROOT, "%.1f", v) : String.valueOf(Math.round(v)), cx + 128, y + 8, Ui.DIM);
                 }
                 case CHOICE, COLOR -> {
                     int idx = Settings.c(mod, d.name);
