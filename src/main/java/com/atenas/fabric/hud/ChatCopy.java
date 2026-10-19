@@ -40,7 +40,7 @@ public final class ChatCopy {
         });
     }
 
-    private static void frame(MinecraftClient mc, int mx, int my) {
+    private static void frame(MinecraftClient mc, int mx, int my) throws Exception {
         boolean down = Keys.mouseDown(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
         boolean edge = down && !wasDown;
         wasDown = down;
