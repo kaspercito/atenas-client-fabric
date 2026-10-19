@@ -50,6 +50,12 @@ public final class AtenasFabricClient implements ClientModInitializer {
         });
         ClientTickEvents.END_CLIENT_TICK.register(c -> safe("hudextras", com.atenas.fabric.hud.HudExtras::tick, c));
         ClientTickEvents.END_CLIENT_TICK.register(c -> { if (c.getOverlay() == null) safe("cosmeticsync", com.atenas.fabric.cosmetics.CosmeticSync::tick, c); });
+        ClientTickEvents.END_CLIENT_TICK.register(c -> safe("friends", mc -> {
+            if (mc.getOverlay() != null || com.atenas.fabric.net.Friends.sinceLastSync() < 20000) return;
+            boolean in = mc.world != null;
+            String srv = in && mc.getCurrentServerEntry() != null ? mc.getCurrentServerEntry().address : "";
+            com.atenas.fabric.net.Friends.sync(in, srv);
+        }, c));
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.of("atenasclientfabric", "hud"), Hud::render);
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(

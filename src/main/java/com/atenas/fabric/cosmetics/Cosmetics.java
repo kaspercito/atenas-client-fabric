@@ -41,9 +41,9 @@ public final class Cosmetics {
 
     /** Entrada de capa del catalogo del servicio. */
     public static final class Def {
-        public final String id, name; public final int color, frames, ver; public final boolean glow; public final Set<String> owners;
-        public Def(String id, String name, int color, boolean glow, int frames, int ver, Set<String> owners) {
-            this.id = id; this.name = name; this.color = color; this.glow = glow; this.frames = frames; this.ver = ver; this.owners = owners;
+        public final String type, id, name; public final int color, frames, ver; public final boolean glow, priv; public final Set<String> owners;
+        public Def(String type, String id, String name, int color, boolean glow, int frames, int ver, boolean priv, Set<String> owners) {
+            this.type = type; this.priv = priv; this.id = id; this.name = name; this.color = color; this.glow = glow; this.frames = frames; this.ver = ver; this.owners = owners;
         }
     }
 
@@ -114,8 +114,9 @@ public final class Cosmetics {
         w("fenix", "Alas de F\u00e9nix", 0xFFFF7A14, true, true); w("tormenta", "Alas de Tormenta", 0xFF5078E6, true, true);
         w("cibernetico", "Alas Cibern\u00e9ticas", 0xFF00DCFF, true, true); w("esqueleto", "Alas de Esqueleto", 0xFFDDD6C4, false, true);
         pet("perro", "Perro", 0xFFCD9654); pet("husky", "Husky", 0xFF68707E); pet("dalmata", "D\u00e1lmata", 0xFFF4F4F6); pet("gato", "Gato", 0xFFE28E3E);
-        pet("gatonegro", "Gato negro", 0xFF24242E); pet("zorro", "Zorro", 0xFFE87028); pet("conejo", "Conejo", 0xFFCEBCA8); pet("panda", "Panda", 0xFFF4F4F2);
+        pet("gatonegro", "Gato negro", 0xFF24242E); pet("zorro", "Zorro", 0xFFE87028); pet("catalina", "Catalina", 0xFFF2F0EE); pet("conejo", "Conejo", 0xFFCEBCA8); pet("panda", "Panda", 0xFFF4F4F2);
         pet("loro", "Loro", 0xFFD82626); pet("buho", "B\u00faho", 0xFF8A6848); pet("dragoncito", "Dragoncito", 0xFF42A86C);
+        PETS.stream().filter(i -> i.id.equals("catalina")).forEach(i -> i.locked = true);
         h("halo", "Halo", 0xFFFFE680, true); h("corona", "Corona", 0xFFF5C542, false); h("galera", "Galera", 0xFF3A3A4E, false);
         h("gato", "Orejas de Gato", 0xFF2A2A34, false); h("cuernos", "Cuernos", 0xFFC0182A, false); h("mago", "Sombrero de Mago", 0xFF5B2FA8, false);
         h("auriculares", "Auriculares", 0xFF28283A, false); h("conejo", "Orejas de Conejo", 0xFFF2F2F7, false); h("gorra", "Gorra", 0xFF2447B8, false);
@@ -136,7 +137,7 @@ public final class Cosmetics {
         ensureLoaded();
         if ("cape".equals(type)) { applyRemote(id); return; }
         String v = "none".equals(id) || id == null || id.isEmpty() ? null : id;
-        if (v == null) SEL.remove(type); else if (find(type, v) != null) SEL.put(type, v);
+        if (v == null) SEL.remove(type); else { Item f = find(type, v); if (f != null && !f.locked) SEL.put(type, v); }
         save();
     }
 
@@ -169,20 +170,42 @@ public final class Cosmetics {
         save();
     }
 
-    /** Catalogo nuevo: se reemplazan las capas custom y se marcan las privadas que no son tuyas. */
+    /** Catalogo nuevo: reglas de privacidad sobre los cosmeticos incorporados (capas, alas, sombreros, mascotas) y capas nuevas del servicio. */
     static void applyCatalog(List<Def> defs, String me) {
-        List<Item> next = new ArrayList<>(BUILTIN);
         String low = me == null ? "" : me.toLowerCase(Locale.ROOT);
+        java.util.Map<String, Def> byKey = new java.util.HashMap<>();
+        for (Def d : defs) byKey.put(d.type + ":" + d.id, d);
+        // incorporados: privado => solo los de "owners"
+        for (String t : new String[] {"cape", "wings", "hat", "pet"}) {
+            for (Item i : listOf(t)) {
+                if (i.custom) continue;
+                Def d = byKey.get(t + ":" + i.id);
+                i.locked = d != null && d.priv && !(d.owners != null && d.owners.contains(low));
+            }
+        }
+        if (byKey.get("pet:catalina") == null) { Item c = find("pet", "catalina"); if (c != null) c.locked = true; } // sin regla del servicio sigue privada
+        // capas nuevas
+        List<Item> next = new ArrayList<>(BUILTIN);
         for (Def d : defs) {
+            if (!"cape".equals(d.type)) continue;
             boolean dup = false;
             for (Item i : next) if (i.id.equals(d.id)) { dup = true; break; }
             if (dup) continue;
             Item it = new Item(d.id, d.name, d.color, d.glow, d.frames, true, d.ver);
-            it.locked = d.owners != null && !d.owners.contains(low);
+            it.locked = d.priv && !(d.owners != null && d.owners.contains(low));
             next.add(it);
         }
         CAPES.clear();
         CAPES.addAll(next);
+        // lo que llevas puesto y ya no puedes llevar se quita y se sincroniza
+        boolean dropped = false;
+        for (String t : new String[] {"wings", "hat", "pet"}) {
+            Item c = find(t, SEL.get(t));
+            if (c != null && c.locked) { SEL.remove(t); dropped = true; }
+        }
+        Item cc = find(selected);
+        if (cc != null && cc.locked) { selected = null; dropped = true; }
+        if (dropped) { save(); CosmeticSync.markDirty(); }
     }
 
     // ------------------------------------------------------------------ disco

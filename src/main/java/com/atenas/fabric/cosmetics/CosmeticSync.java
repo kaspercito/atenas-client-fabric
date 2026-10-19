@@ -77,7 +77,7 @@ public final class CosmeticSync {
     public static void markDirty() { dirty = true; rev++; lastPush = 0; }
 
     /** Pide ya lo tuyo al servicio (al abrir el menu: un cambio hecho en 1.8.9 aparece al instante). */
-    public static void refreshNow() { lastSelf = 0; lastCat = 0; }
+    public static void refreshNow() { lastSelf = 0; lastCat = 0; catRev = ""; }
 
     private static String me() { return MinecraftClient.getInstance().getSession().getUsername(); }
 
@@ -216,24 +216,28 @@ public final class CosmeticSync {
 
     private static List<Cosmetics.Def> parse(JsonArray arr) {
         List<Cosmetics.Def> out = new ArrayList<>();
+        if (arr == null) return out;
         for (JsonElement el : arr) {
             if (!el.isJsonObject()) continue;
             JsonObject o = el.getAsJsonObject();
             try {
-                if (!"cape".equals(str(o, "type"))) continue; // alas/sombreros/mascotas: pendientes en 1.21.11
+                String type = str(o, "type");
+                if (type == null || !(type.equals("cape") || type.equals("wings") || type.equals("hat") || type.equals("pet"))) continue;
                 String id = str(o, "id");
                 if (id == null || !id.matches("[a-z0-9_]{1,24}")) continue;
+                // igual que 1.8.9: si trae lista de owners, es privado
                 Set<String> owners = null;
-                if ("private".equals(str(o, "scope")) && o.has("owners") && o.get("owners").isJsonArray()) {
+                if (o.has("owners") && o.get("owners").isJsonArray()) {
                     owners = new HashSet<>();
                     for (JsonElement n : o.getAsJsonArray("owners")) owners.add(n.getAsString().toLowerCase(Locale.ROOT));
                 }
+                boolean priv = "private".equals(str(o, "scope")) || owners != null;
                 String name = str(o, "name");
-                out.add(new Cosmetics.Def(id, name == null ? id : name,
+                out.add(new Cosmetics.Def(type, id, name == null ? id : name,
                     o.has("color") && !o.get("color").isJsonNull() ? (int) o.get("color").getAsLong() : 0xFF8B5CF6,
                     o.has("glow") && !o.get("glow").isJsonNull() && o.get("glow").getAsBoolean(),
                     o.has("frames") && !o.get("frames").isJsonNull() ? o.get("frames").getAsInt() : 1,
-                    o.has("ver") && !o.get("ver").isJsonNull() ? o.get("ver").getAsInt() : 0, owners));
+                    o.has("ver") && !o.get("ver").isJsonNull() ? o.get("ver").getAsInt() : 0, priv, owners));
             } catch (RuntimeException ex) { System.err.println("[AtenasClient] entrada del catalogo ignorada: " + ex); }
         }
         return out;
