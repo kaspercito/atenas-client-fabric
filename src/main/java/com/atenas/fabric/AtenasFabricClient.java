@@ -65,7 +65,7 @@ public final class AtenasFabricClient implements ClientModInitializer {
                     .executes(ctx -> {
                         String m = StringArgumentType.getString(ctx, "modulo");
                         if (!Mods.toggleNames().contains(m)) { ctx.getSource().sendFeedback(Text.literal("Modulos: " + String.join(", ", Mods.toggleNames()))); return 0; }
-                        boolean on = Config.toggle(m, !java.util.Set.of("fullbright", "speed", "memory", "clock").contains(m));
+                        boolean on = Config.toggle(m, !java.util.Set.of("fullbright", "speed", "memory", "clock", "movement").contains(m));
                         ctx.getSource().sendFeedback(Text.literal(m + (on ? ": activado" : ": desactivado")));
                         return 1;
                     }))));

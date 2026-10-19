@@ -56,6 +56,10 @@ public final class Config {
 
     public static synchronized void putBool(String key, boolean v) { load(); P.setProperty(key, Boolean.toString(v)); }
 
+    public static synchronized String getStr(String key, String def) { load(); String v = P.getProperty(key); return v == null ? def : v; }
+
+    public static synchronized void putStr(String key, String v) { load(); P.setProperty(key, v == null ? "" : v); }
+
     public static synchronized void save() {
         load();
         try (FileOutputStream out = new FileOutputStream(file())) { P.store(out, "Atenas Client 1.21.11"); } catch (Exception ignored) { }

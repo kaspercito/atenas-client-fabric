@@ -71,18 +71,26 @@ public final class Extras {
         if (mc.options.getPerspective() != net.minecraft.client.option.Perspective.FIRST_PERSON || mc.options.hudHidden) return;
         int cx = g.getScaledWindowWidth() / 2, cy = g.getScaledWindowHeight() / 2;
         boolean aim = mc.crosshairTarget instanceof EntityHitResult;
-        int c = aim ? 0xFFFF4D4D : 0xFFFFFFFF, o = 0xFF000000;
-        int s = 6, gap = 3, t = 1;
-        // contorno
-        g.fill(cx - gap - s - 1, cy - 1, cx - gap + 1, cy + t + 1, o);
-        g.fill(cx + t + gap - 1, cy - 1, cx + t + gap + s + 1, cy + t + 1, o);
-        g.fill(cx - 1, cy - gap - s - 1, cx + t + 1, cy - gap + 1, o);
-        g.fill(cx - 1, cy + t + gap - 1, cx + t + 1, cy + t + gap + s + 1, o);
-        // cruz
-        g.fill(cx - gap - s, cy, cx - gap, cy + t, c);
-        g.fill(cx + t + gap, cy, cx + t + gap + s, cy + t, c);
-        g.fill(cx, cy - gap - s, cx + t, cy - gap, c);
-        g.fill(cx, cy + t + gap, cx + t, cy + t + gap + s, c);
+        int c = aim && Settings.b("crosshair", "aim") ? 0xFFFF4D4D : Settings.color("crosshair", "color"), o = 0xFF000000;
+        int s = (int) Settings.n("crosshair", "size"), gap = (int) Settings.n("crosshair", "gap"), t = (int) Settings.n("crosshair", "thick");
+        int style = Settings.c("crosshair", "style"); // 0 cruz, 1 T, 2 punto
+        boolean out = Settings.b("crosshair", "outline");
+        int h = t / 2;
+        if (style == 2) {
+            if (out) g.fill(cx - h - 1, cy - h - 1, cx - h + t + 1, cy - h + t + 1, o);
+            g.fill(cx - h, cy - h, cx - h + t, cy - h + t, c);
+            return;
+        }
+        if (out) {
+            g.fill(cx - gap - s - 1, cy - h - 1, cx - gap + 1, cy - h + t + 1, o);
+            g.fill(cx + gap - 1, cy - h - 1, cx + gap + s + 1, cy - h + t + 1, o);
+            g.fill(cx - h - 1, cy + gap - 1, cx - h + t + 1, cy + gap + s + 1, o);
+            if (style == 0) g.fill(cx - h - 1, cy - gap - s - 1, cx - h + t + 1, cy - gap + 1, o);
+        }
+        g.fill(cx - gap - s, cy - h, cx - gap, cy - h + t, c);
+        g.fill(cx + gap, cy - h, cx + gap + s, cy - h + t, c);
+        g.fill(cx - h, cy + gap, cx - h + t, cy + gap + s, c);
+        if (style == 0) g.fill(cx - h, cy - gap - s, cx - h + t, cy - gap, c);
     }
 
     public static void tick(MinecraftClient mc) {

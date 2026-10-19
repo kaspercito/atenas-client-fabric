@@ -35,7 +35,7 @@ public final class Mods {
     private static final KeyBinding[] AUTO = new KeyBinding[4];
     private static final String[] AUTO_TEXT = new String[4];
 
-    private static boolean zooming; private static int savedFov;
+    private static boolean zooming, autoSprint; private static int savedFov; private static float curFov;
     private static boolean fbOn;
 
     private static KeyBinding key(String id, int code) {
@@ -52,6 +52,16 @@ public final class Mods {
         deafen = key("voice_deafen", GLFW.GLFW_KEY_U);
         for (int i = 0; i < 4; i++) AUTO[i] = key("autotext_" + (i + 1), GLFW.GLFW_KEY_KP_1 + i);
         loadAutotext();
+        // Chat: hora [HH:mm] delante de cada mensaje (mensajes del servidor y de jugadores)
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.MODIFY_GAME.register((msg, overlay) -> overlay ? msg : stamp(msg));
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.MODIFY_CHAT.register((msg, signed, sender, params, ts) -> stamp(msg));
+    }
+
+    private static net.minecraft.text.Text stamp(net.minecraft.text.Text msg) {
+        if (!Config.get("chat", true) || !Settings.b("chat", "time")) return msg;
+        String f = Settings.b("chat", "seconds") ? "HH:mm:ss" : "HH:mm";
+        return net.minecraft.text.Text.literal("[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(f)) + "] ")
+            .formatted(net.minecraft.util.Formatting.GRAY).append(msg);
     }
 
     /** <.minecraft>/atenas/autotext.txt: una linea por tecla (Numpad 1-4). Se crea con ejemplos. Lineas con "/" son comandos. */
@@ -64,7 +74,25 @@ public final class Mods {
         } catch (Exception ignored) { }
     }
 
+    private static boolean tabWas;
+
+    /** Shift+Tab abre Amigos (como en 1.8.9): en el juego, en la pausa y en el menu principal. Se lee el teclado directo (Tab ya es la lista de jugadores). */
+    private static void friendsHotkey(MinecraftClient mc) {
+        if (mc.getOverlay() != null) return;
+        boolean tab = com.atenas.fabric.gui.Keys.down(GLFW.GLFW_KEY_TAB);
+        boolean shift = com.atenas.fabric.gui.Keys.shift();
+        boolean edge = tab && shift && !tabWas;
+        tabWas = tab;
+        if (!edge) return;
+        net.minecraft.client.gui.screen.Screen cs = mc.currentScreen;
+        if (cs == null || cs instanceof net.minecraft.client.gui.screen.GameMenuScreen || cs instanceof net.minecraft.client.gui.screen.TitleScreen
+                || cs instanceof com.atenas.fabric.AtenasTitleScreen) {
+            mc.setScreen(new com.atenas.fabric.gui.FriendsScreen(cs));
+        }
+    }
+
     public static void tick(MinecraftClient mc) {
+        friendsHotkey(mc);
         while (menu.wasPressed()) { if (mc.currentScreen == null) mc.setScreen(new ConfigScreen()); }
         if (mc.world == null || mc.player == null) {
             WaypointStore.setContext(null, 0);
@@ -86,11 +114,23 @@ public final class Mods {
         int dim = "minecraft:overworld".equals(dimId) ? 0 : "minecraft:the_nether".equals(dimId) ? -1 : "minecraft:the_end".equals(dimId) ? 1 : 2 + (dimId.hashCode() & 0xFFFF);
         WaypointStore.setContext(key, dim);
 
-        // ---- zoom: mantener la tecla; baja el FOV y lo restaura al soltar ----
-        boolean z = zoom.isPressed() && mc.currentScreen == null;
-        if (z && !zooming) { savedFov = mc.options.getFov().getValue(); zooming = true; }
-        if (z) mc.options.getFov().setValue(30);
-        else if (zooming) { mc.options.getFov().setValue(savedFov); zooming = false; }
+        // ---- zoom: mantener la tecla; FOV configurable y suave; se restaura al soltar ----
+        boolean z = Config.get("zoom", true) && zoom.isPressed() && mc.currentScreen == null;
+        if (z && !zooming) { savedFov = mc.options.getFov().getValue(); curFov = savedFov; zooming = true; }
+        if (zooming) {
+            float target = z ? Settings.n("zoom", "fov") : savedFov;
+            curFov = Settings.b("zoom", "smooth") ? curFov + (target - curFov) * 0.35f : target;
+            mc.options.getFov().setValue(Math.max(30, Math.min(110, Math.round(curFov))));
+            if (!z && Math.abs(curFov - savedFov) < 1.5f) { mc.options.getFov().setValue(savedFov); zooming = false; }
+        }
+
+        // ---- movimiento: sprint automatico y agacharse con toggle ----
+        if (Config.get("movement", false)) {
+            boolean auto = Settings.b("movement", "sprint") && mc.options.forwardKey.isPressed() && !mc.player.isSneaking() && mc.currentScreen == null;
+            if (auto) { mc.options.sprintKey.setPressed(true); autoSprint = true; }
+            else if (autoSprint) { mc.options.sprintKey.setPressed(false); autoSprint = false; }
+            mc.options.getSneakToggled().setValue(Settings.b("movement", "sneak"));
+        }
 
         // ---- perspectiva: alterna primera persona / tercera persona trasera ----
         while (perspective.wasPressed()) {
@@ -110,7 +150,7 @@ public final class Mods {
         // ---- autotext ----
         for (int i = 0; i < 4; i++) {
             while (AUTO[i].wasPressed()) {
-                String t = AUTO_TEXT[i];
+                String t = Config.get("autotext", true) ? Settings.str("autotext", "line" + (i + 1), AUTO_TEXT[i]) : null;
                 if (t == null || t.isEmpty() || mc.currentScreen != null) continue;
                 if (t.startsWith("/")) mc.player.networkHandler.sendChatCommand(t.substring(1));
                 else mc.player.networkHandler.sendChatMessage(t);
@@ -137,7 +177,7 @@ public final class Mods {
 
     public static List<String> toggleNames() {
         List<String> l = new ArrayList<>();
-        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu"}) l.add(s);
+        for (String s : new String[] {"hud", "fps", "coords", "direction", "time", "waypoints", "team", "team_share", "team_friends", "voice", "cps", "ping", "keystrokes", "armor", "potions", "speed", "memory", "clock", "fullbright", "combo", "reach", "crosshair", "nobg", "tablogo", "blockoverlay", "atenasmenu", "zoom", "movement", "chat", "autotext"}) l.add(s);
         return l;
     }
 }

@@ -47,7 +47,7 @@ public final class HudExtras {
 
     /** Lineas de texto para la columna izquierda del HUD. */
     public static void lines(MinecraftClient mc, List<String> out) {
-        if (Config.get("cps", true)) out.add("CPS " + cps(LEFT) + " | " + cps(RIGHT));
+        if (Config.get("cps", true)) out.add(Settings.b("cps", "right") ? "CPS " + cps(LEFT) + " | " + cps(RIGHT) : "CPS " + cps(LEFT));
         if (Config.get("ping", true) && mc.getNetworkHandler() != null) {
             PlayerListEntry e = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
             if (e != null) out.add("Ping " + e.getLatency() + " ms");
@@ -62,40 +62,65 @@ public final class HudExtras {
         if (Config.get("clock", false)) out.add(LocalTime.now().format(CLOCK));
     }
 
-    /** Armadura (abajo a la derecha), pociones (derecha) y teclas (abajo a la izquierda). */
+    /** Armadura, pociones y teclas: cada una es un panel que se mueve y escala con el Editor HUD. */
     public static void draw(MinecraftClient mc, DrawContext ctx) {
         int w = mc.getWindow().getScaledWidth(), h = mc.getWindow().getScaledHeight();
+        int tc = Settings.color("hud", "color");
+        boolean sh = Settings.b("hud", "shadow");
         if (Config.get("armor", true)) {
             EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-            int y = h / 2 - 32;
+            HudPos.begin(ctx, "armor", w, h);
+            int y = 0;
             for (EquipmentSlot s : slots) {
                 ItemStack st = mc.player.getEquippedStack(s);
                 if (st.isEmpty()) continue;
-                ctx.drawItem(st, w - 22, y);
-                if (st.isDamageable()) ctx.drawText(mc.textRenderer, String.valueOf(st.getMaxDamage() - st.getDamage()), w - 24 - mc.textRenderer.getWidth(String.valueOf(st.getMaxDamage() - st.getDamage())), y + 5, 0xFFFFFFFF, true);
+                ctx.drawItem(st, 22, y);
+                if (st.isDamageable()) {
+                    int left = st.getMaxDamage() - st.getDamage();
+                    String t = Settings.b("armor", "percent") ? (left * 100 / Math.max(1, st.getMaxDamage())) + "%" : String.valueOf(left);
+                    int col = left * 4 < st.getMaxDamage() ? 0xFFFB7185 : tc;
+                    ctx.drawText(mc.textRenderer, t, 20 - mc.textRenderer.getWidth(t), y + 5, col, sh);
+                }
                 y += 18;
             }
+            HudPos.end(ctx);
         }
         if (Config.get("potions", true)) {
-            List<String> ps = new ArrayList<>();
+            HudPos.begin(ctx, "potions", w, h);
+            int y = 0;
             for (StatusEffectInstance e : mc.player.getStatusEffects()) {
                 int sec = e.getDuration() / 20;
-                ps.add(e.getEffectType().value().getName().getString() + " " + (e.getAmplifier() + 1) + " " + (sec / 60) + ":" + String.format("%02d", sec % 60));
+                String s = e.getEffectType().value().getName().getString() + " " + (e.getAmplifier() + 1)
+                    + (Settings.b("potions", "time") ? " " + (sec / 60) + ":" + String.format("%02d", sec % 60) : "");
+                int col = sec <= 10 && (System.currentTimeMillis() / 400) % 2 == 0 ? 0xFFFB7185 : tc;
+                ctx.drawText(mc.textRenderer, s, 110 - mc.textRenderer.getWidth(s), y, col, sh);
+                y += 10;
             }
-            int y = 4;
-            for (String s : ps) { ctx.drawText(mc.textRenderer, s, w - 4 - mc.textRenderer.getWidth(s), y, 0xFFFFFFFF, true); y += 10; }
+            HudPos.end(ctx);
         }
         if (Config.get("keystrokes", true)) {
-            int x = 8, y = h - 62, k = 18;
-            key(ctx, mc, "W", mc.options.forwardKey.isPressed(), x + k, y);
-            key(ctx, mc, "A", mc.options.leftKey.isPressed(), x, y + k);
-            key(ctx, mc, "S", mc.options.backKey.isPressed(), x + k, y + k);
-            key(ctx, mc, "D", mc.options.rightKey.isPressed(), x + 2 * k, y + k);
+            HudPos.begin(ctx, "keys", w, h);
+            int k = 18;
+            key(ctx, mc, "W", mc.options.forwardKey.isPressed(), k, 0, 16);
+            key(ctx, mc, "A", mc.options.leftKey.isPressed(), 0, k, 16);
+            key(ctx, mc, "S", mc.options.backKey.isPressed(), k, k, 16);
+            key(ctx, mc, "D", mc.options.rightKey.isPressed(), 2 * k, k, 16);
+            int y2 = 2 * k;
+            if (Settings.b("keystrokes", "mouse")) {
+                key(ctx, mc, "L " + cps(LEFT), mc.options.attackKey.isPressed(), 0, y2, 26);
+                key(ctx, mc, "R " + cps(RIGHT), mc.options.useKey.isPressed(), 28, y2, 26);
+                y2 += k;
+            }
+            if (Settings.b("keystrokes", "space")) {
+                ctx.fill(0, y2, 54, y2 + 8, mc.options.jumpKey.isPressed() ? 0xAAFFFFFF : 0x66000000);
+                ctx.fill(18, y2 + 3, 36, y2 + 4, mc.options.jumpKey.isPressed() ? 0xFF000000 : 0xFFFFFFFF);
+            }
+            HudPos.end(ctx);
         }
     }
 
-    private static void key(DrawContext ctx, MinecraftClient mc, String t, boolean on, int x, int y) {
-        ctx.fill(x, y, x + 16, y + 16, on ? 0xAAFFFFFF : 0x66000000);
-        ctx.drawText(mc.textRenderer, t, x + 8 - mc.textRenderer.getWidth(t) / 2, y + 4, on ? 0xFF000000 : 0xFFFFFFFF, false);
+    private static void key(DrawContext ctx, MinecraftClient mc, String t, boolean on, int x, int y, int w) {
+        ctx.fill(x, y, x + w, y + 16, on ? 0xAAFFFFFF : 0x66000000);
+        ctx.drawText(mc.textRenderer, t, x + w / 2 - mc.textRenderer.getWidth(t) / 2, y + 4, on ? 0xFF000000 : 0xFFFFFFFF, false);
     }
 }

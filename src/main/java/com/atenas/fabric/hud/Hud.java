@@ -35,8 +35,10 @@ public final class Hud {
     public static void render(DrawContext ctx, RenderTickCounter tick) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.world == null || mc.options.hudHidden || !Config.get("hud", true)) return;
-        int white = 0xFFFFFFFF;
-        int y = 4;
+        int sw = mc.getWindow().getScaledWidth(), sh = mc.getWindow().getScaledHeight();
+        int white = Settings.color("hud", "color");
+        boolean shadow = Settings.b("hud", "shadow"), bg = Settings.b("hud", "bg");
+        int y = 0;
         List<String> left = new ArrayList<>();
         if (Config.get("fps", true)) left.add(mc.getCurrentFps() + " FPS");
         if (Config.get("coords", true)) left.add(String.format(Locale.ROOT, "XYZ %.0f %.0f %.0f", mc.player.getX(), mc.player.getY(), mc.player.getZ()));
@@ -55,14 +57,21 @@ public final class Hud {
             if (!s.isEmpty()) left.add("\u266A " + s);
         }
         HudExtras.lines(mc, left);
-        for (String s : left) { ctx.drawText(mc.textRenderer, s, 4, y, white, true); y += 10; }
+        HudPos.begin(ctx, "info", sw, sh);
+        for (String s : left) {
+            if (bg) ctx.fill(-2, y - 1, mc.textRenderer.getWidth(s) + 2, y + 9, 0x80000000);
+            ctx.drawText(mc.textRenderer, s, 0, y, white, shadow);
+            y += 10;
+        }
+        HudPos.end(ctx);
 
         HudExtras.draw(mc, ctx);
         BlockOverlay.draw(mc, ctx, tick.getTickProgress(false));
 
         // ---- waypoints y companeros cercanos (arriba al centro) ----
-        int cx = mc.getWindow().getScaledWidth() / 2;
-        int cy = 4;
+        HudPos.begin(ctx, "wp", sw, sh);
+        int cx = 80;
+        int cy = 0;
         double px = mc.player.getX(), pz = mc.player.getZ();
         int dim = WaypointStore.currentDim();
         if (Config.get("waypoints", true)) {
@@ -86,5 +95,6 @@ public final class Hud {
                 cy += 10;
             }
         }
+        HudPos.end(ctx);
     }
 }

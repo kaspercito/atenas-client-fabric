@@ -55,3 +55,14 @@ Repo esperado por el launcher: `kaspercito/atenas-client-fabric` (cambialo en `l
 ## Arreglo: pantalla negra al arrancar
 - CAUSA REAL: desde 1.21.9 `Overlay.tick()` es el que termina la carga y abre el menu; `AtenasLoading` no lo reenviaba y el juego se quedaba en una MessageScreen (class_424) vacia. Ahora reenvia `tick()` y `pausesGame()` al overlay original. Ademas Ahora `AtenasLoading` quita el overlay al terminar su animacion y `AtenasLoading.guard` abre el menu principal si tras la carga no hay menu.
 - Notas de version: el workflow usa `RELEASE_NOTES.md` (o los mensajes de commit, sin duplicados) en vez de `generate_release_notes`, asi no aparece "**Full Changelog**: ...". Edita `RELEASE_NOTES.md` antes de cada tag.
+
+## Amigos y Cuenta igual que 1.8.9 (sin compilar)
+- `gui/FriendsScreen.java`: reescrita sobre `SocialScreen` de 1.8.9 (mismas medidas y colores): campo "Agregar amigo", lista agrupada (Solicitudes, Jugando ahora, En linea, Desconectados, Enviadas) con caras, insignia de no leidos, botones aceptar/rechazar/cancelar, chat en burbujas con hora, "Quitar" con confirmacion, pie con tu nick y verificacion. Atajo **Shift+Tab** (juego, pausa y menu principal) en `Mods.friendsHotkey`.
+- `net/Accounts.java` + `gui/AccountScreen.java`: cambio de cuenta real. Sin conexion: se cambia en caliente (reemplaza la Session por reflexion, sin nombres de Yarn). Microsoft: escribe `config/switch-request.json`, cierra el juego y el launcher lo reabre con esa cuenta. Agregar premium, guardar nick, quitar y cerrar sesion van por `account-request.json` / `account-result.json` (el launcher ya lo atiende). Requiere abrir el juego desde el launcher (`-Datenas.home`).
+- Si Gradle protesta: lo mas probable es el nombre de algun metodo de input de 1.21.11 (`Click`, `KeyInput`, `CharInput`) o `Session`; mandame el error.
+
+## Panel de ajustes, Editor HUD y modulos nuevos (sin compilar)
+- Tarjetas con engranaje en Right Shift: `hud/Settings.java` define los ajustes (HUD: color/sombra/fondo; CPS; Armadura en %; Pociones; Teclas; Mira: estilo/tamano/separacion/grosor/color/contorno; Zoom: FOV y suave; Movimiento; Chat; Autotext editable) y `hud/ModSettingsScreen.java` los muestra.
+- Editor HUD (`hud/HudEditorScreen.java`, `hud/HudPos.java`): arrastrar y rueda para tamano en los 5 paneles (info, armadura, pociones, teclas, waypoints).
+- Modulos nuevos: Zoom suave (minimo FOV 30 = limite del juego), Movimiento (sprint automatico, agacharse toggle), Chat con hora (usa `ClientReceiveMessageEvents.MODIFY_GAME/MODIFY_CHAT` de Fabric API: si el compilador protesta, es ahi), Autotext editable en el menu.
+- NO se portan (decision): Animaciones 1.7, Rendimiento, Sin Fuego. Pendiente: chat largo, copiar mensaje con clic derecho, perspectiva libre y zoom con la rueda (los tres necesitan mixin).

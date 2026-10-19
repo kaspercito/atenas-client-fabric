@@ -45,6 +45,10 @@ public final class ConfigScreen extends Screen {
         ITEMS.put("blockoverlay", new Object[] {"Resalte de bloque", true});
         ITEMS.put("atenasmenu", new Object[] {"Men\u00fa Atenas", true});
         ITEMS.put("fullbright", new Object[] {"Fullbright", false});
+        ITEMS.put("zoom", new Object[] {"Zoom", true});
+        ITEMS.put("movement", new Object[] {"Movimiento", false});
+        ITEMS.put("chat", new Object[] {"Chat con hora", true});
+        ITEMS.put("autotext", new Object[] {"Autotext", true});
     }
 
     // categoria y descripcion por modulo (como las tarjetas de 1.8.9)
@@ -66,6 +70,8 @@ public final class ConfigScreen extends Screen {
         m("crosshair", 5, "Mira propia del cliente."); m("nobg", 5, "TAB y marcador sin fondo.");
         m("tablogo", 4, "Logo de Atenas junto a los usuarios del cliente."); m("blockoverlay", 5, "Resalte del bloque que apuntas.");
         m("atenasmenu", 5, "Usa el menu principal de Atenas."); m("fullbright", 5, "Brillo maximo para ver de noche.");
+        m("zoom", 5, "Mantén C para acercar (FOV y suavidad ajustables)."); m("movement", 2, "Sprint automatico y agacharse con toggle.");
+        m("chat", 4, "Hora [HH:mm] delante de cada mensaje."); m("autotext", 4, "Numpad 1-4 envian mensajes o comandos.");
     }
 
     private static final int SIDE = 104;
@@ -126,7 +132,7 @@ public final class ConfigScreen extends Screen {
                 switch (i) {
                     case 0: tab = 0; break;
                     case 1: com.atenas.fabric.cosmetics.CosmeticSync.refreshNow(); client.setScreen(new com.atenas.fabric.cosmetics.CosmeticsScreen(this)); break;
-                    case 2: tab = 0; filter = 1; scroll = 0; break; // Editor HUD: pendiente, abre la categoria HUD
+                    case 2: client.setScreen(new HudEditorScreen(this)); break;
                     case 3: client.setScreen(new FriendsScreen(this)); break;
                     default: tab = 1; break;
                 }
@@ -145,7 +151,12 @@ public final class ConfigScreen extends Screen {
             List<String> keys = visibleKeys();
             if (my >= top && my < top + listH) for (int i = 0; i < keys.size(); i++) {
                 int x = bx + (i % cols) * (cw + gap), yy = top + (i / cols) * (chh + gap) - scroll;
-                if (mx >= x && mx < x + cw && my >= yy && my < yy + chh) { flip(keys.get(i)); return true; }
+                if (mx >= x && mx < x + cw && my >= yy && my < yy + chh) {
+                    String k = keys.get(i);
+                    if (Settings.has(k) && mx >= x + cw - 52 && mx < x + cw - 34 && my < yy + 24) { client.setScreen(new ModSettingsScreen(this, k, (String) ITEMS.get(k)[0])); return true; }
+                    flip(k);
+                    return true;
+                }
             }
         }
         return super.mouseClicked(click, doubled);
@@ -228,6 +239,7 @@ public final class ConfigScreen extends Screen {
             Ui.text(g, textRenderer, Ui.fit(textRenderer, name, cw - 36 - 34), x + 37, yy + 9, Ui.TEXT);
             Ui.text(g, textRenderer, CATS[cat(k)], x + 37, yy + 20, col);
             Ui.toggle(g, x + cw - 30, yy + 8, onK);
+            if (Settings.has(k)) Ui.sliders(g, x + cw - 48, yy + 8, Ui.DIM);
             Ui.text(g, textRenderer, Ui.fit(textRenderer, desc(k), cw - 16), x + 8, yy + 38, Ui.DIM);
         }
         g.disableScissor();
