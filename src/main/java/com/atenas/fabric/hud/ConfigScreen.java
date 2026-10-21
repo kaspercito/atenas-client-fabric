@@ -87,7 +87,7 @@ public final class ConfigScreen extends Screen {
 
     private int cols(int bw) { return bw >= 540 ? 3 : bw >= 300 ? 2 : 1; }
 
-    private void close() { client.setScreen(parent); }
+    private void closeToParent() { client.setScreen(parent); }
 
     /** Engranaje de TODOS los modulos: Autotext abre su editor de atajos; el resto, su panel de ajustes (con scroll). */
     private void openSettings(String k) {
@@ -165,7 +165,7 @@ public final class ConfigScreen extends Screen {
             if (key == GLFW.GLFW_KEY_BACKSPACE) { if (!query.isEmpty()) query = query.substring(0, query.length() - 1); scroll = 0; return true; }
             return true; // el buscador se queda con las teclas
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE || Mods.isMenuKey(key)) { close(); return true; }
+        if (key == GLFW.GLFW_KEY_ESCAPE || Mods.isMenuKey(key)) { closeToParent(); return true; }
         return true;
     }
 

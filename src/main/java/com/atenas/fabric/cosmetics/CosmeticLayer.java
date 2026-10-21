@@ -75,7 +75,7 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         int lit = preview ? FULL : light; // vista previa a pleno brillo, como en el 1.8.9
         float by = state instanceof LivingEntityRenderState ls ? ls.bodyYaw : p.getBodyYaw();
         // balanceo de las piernas (limbSwing / limbSwingAmount del 1.8.9)
-        float limbSwing = p.limbAnimator.getPos(pt), limbAmount = p.limbAnimator.getSpeed(pt);
+        float limbSwing = p.limbAnimator.getAnimationProgress(pt), limbAmount = p.limbAnimator.getSpeed();
 
         if (wingId != null) {
             Cosmetics.Item item = Cosmetics.find("wings", wingId);
@@ -137,7 +137,7 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         ms.push();
         model.body.applyTransform(ms);
         // el 1.8.9 dibuja las alas con mezcla alfa (770, 771): las plumas y membranas semitransparentes se mezclan, no se recortan
-        queue.submitCustom(ms, (fTwo ? RenderLayers.entityTranslucentCull(tex("wings", item.id)) : RenderLayers.entityTranslucent(tex("wings", item.id))), (e, vc) -> {
+        queue.submitCustom(ms, RenderLayers.entityTranslucent(tex("wings", item.id)), (e, vc) -> {
             sink.vc = vc; sink.e = e; sink.light = fLight;
             if (item.membrane) plane.emit(sink, fOpen, fTime, fFlap, fTwo, WingPlane.gridFor(fd2), 0.0625F);
             else mesh.emit(sink, fOpen, fPhase, fFlap, fSegs, fTwo, 0.0625F);
