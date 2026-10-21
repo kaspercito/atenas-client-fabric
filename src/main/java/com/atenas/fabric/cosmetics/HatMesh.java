@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.texture.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 
 /** Malla .atm de un sombrero (mismos archivos que el cliente 1.8.9 y el mod 1.20.1). Formato: 'ATM1', grupos; por grupo nombre, flags, quads. */
@@ -62,7 +61,7 @@ public final class HatMesh {
         float[] f = quads[g];
         int a = Math.max(0, Math.min(255, (int) (alpha * 255f)));
         for (int o = 0; o < f.length; o += 8) {
-            vc.vertex(e, f[o], f[o + 1], f[o + 2]).color(255, 255, 255, a).texture(f[o + 3], f[o + 4]).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(e, f[o + 5], f[o + 6], f[o + 7]);
+            vc.vertex(e, f[o], f[o + 1], f[o + 2]).color(255, 255, 255, a).texture(f[o + 3], f[o + 4]).overlay(OverlayNone.UV).light(light).normal(e, f[o + 5], f[o + 6], f[o + 7]);
         }
     }
 }

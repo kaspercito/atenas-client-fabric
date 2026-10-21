@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.texture.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -100,7 +99,7 @@ public final class PetModel {
                 for (int j = 0; j < 4; j++) {
                     m.transformPosition(p[j][0] / 16f, p[j][1] / 16f, p[j][2] / 16f, TP);
                     vc.vertex(e, TP.x, TP.y, TP.z).color(255, 255, 255, a).texture(n.quadUv[f][j][0], n.quadUv[f][j][1])
-                        .overlay(OverlayTexture.DEFAULT_UV).light(light).normal(e, TN.x, TN.y, TN.z);
+                        .overlay(OverlayNone.UV).light(light).normal(e, TN.x, TN.y, TN.z);
                 }
             }
         }
@@ -126,7 +125,7 @@ public final class PetModel {
             if (nn.lengthSquared() > 1e-12f) nn.normalize(); else nn.set(0f, 1f, 0f);
             for (int j = 0; j < 4; j++)
                 vc.vertex(e, f[i][j][0] / 16f, f[i][j][1] / 16f, f[i][j][2] / 16f).color(255, 255, 255, 255).texture(t[j][0], t[j][1])
-                    .overlay(OverlayTexture.DEFAULT_UV).light(light).normal(e, nn.x, nn.y, nn.z);
+                    .overlay(OverlayNone.UV).light(light).normal(e, nn.x, nn.y, nn.z);
         }
     }
 }

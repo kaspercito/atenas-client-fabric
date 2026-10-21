@@ -14,7 +14,6 @@ import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
-import net.minecraft.client.texture.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
@@ -24,7 +23,7 @@ import net.minecraft.util.math.RotationAxis;
  * LivingEntityFeatureRendererRegistrationCallback solo para jugadores (ver AtenasFabricClient). Misma logica y mismas mallas que el 1.8.9.
  *
  * Correcciones respecto a la version anterior:
- *  - overlay: antes (0, 0) = textura de "dano" (tinte rojo sobre todo); ahora OverlayTexture.DEFAULT_UV (sin tinte).
+ *  - overlay: antes (0, 0) = textura de "dano" (tinte rojo sobre todo); ahora OverlayNone.UV (sin tinte).
  *  - alas con mezcla alfa (como el glBlend 770/771 del 1.8.9) en vez de "cutout" (las plumas semitransparentes salian recortadas/duras).
  *  - los dos ultimos parametros de render() son el giro de la cabeza y el cabeceo, NO el balanceo de las piernas: el balanceo sale del limbAnimator.
  *  - alas sin brillo propio (en el 1.8.9 ninguna ala brilla); sombreros emisivos con giro (flag SPIN) como en el 1.8.9.
@@ -45,7 +44,7 @@ public final class CosmeticLayer extends FeatureRenderer<EntityRenderState, Enti
         VertexConsumer vc; MatrixStack.Entry e; int light; float nx, ny = 1f, nz;
         @Override public void normal(float x, float y, float z) { nx = x; ny = y; nz = z; }
         @Override public void vertex(float x, float y, float z, float u, float v) {
-            vc.vertex(e, x, y, z).color(255, 255, 255, 255).texture(u, v).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(e, nx, ny, nz);
+            vc.vertex(e, x, y, z).color(255, 255, 255, 255).texture(u, v).overlay(OverlayNone.UV).light(light).normal(e, nx, ny, nz);
         }
     }
 
